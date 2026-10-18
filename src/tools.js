@@ -96,7 +96,7 @@ export function registerMeetTools(server, ctx) {
   }));
 
   server.registerTool('set_camera', {
-    title: 'Turn the Meet Bot camera on or off',
+    title: 'Turn the Meeting Bot camera on or off',
     description: 'Asks Meeting Bot to show its camera when on is true, and to turn it off when on is false. Contract version 1 has no camera, and then this reports the gap.',
     inputSchema: {
       meeting_id: meetingId,
