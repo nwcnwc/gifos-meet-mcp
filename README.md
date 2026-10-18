@@ -108,13 +108,20 @@ a room password passed to `schedule_meeting` or `join_meeting` is stored in `sch
 restart can rejoin, and is never returned. The server reads no other secret, sends no telemetry, and never
 sends email or calendar invites.
 
+**How the bot looks.** The operator chooses the bot's name and picture: `GIFOS_BOT_NAME` and
+`GIFOS_BOT_PICTURE` in the server's `env`, or the `set_bot_profile` tool, which Grok Bot can call. The picture is
+read from a file on this computer and kept in `GIFOS_MCP_HOME/bot-picture.json` (mode 0600); it is sent to rooms
+like any person's picture and nowhere else.
+
 ## Environment variables
 
 | Variable | Default | What it does |
 |---|---|---|
 | `GIFOS_URL` | `https://gifos.app` | The GifOS site. It must be 0.9.23b or newer. |
 | `GIFOS_RELAY` | GifOS default | A custom relay (`wss://…`), added to meeting links. |
-| `GIFOS_BOT_NAME`, `GIFOS_BOT_PASSWORD` | generated | The bot's name (what people see) and password. A `bot.json` that cannot be read is kept as `bot.json.bad-<ms>` and a new pair is generated. |
+| `GIFOS_BOT_NAME` | generated | The name people see on the bot's tile (3 to 40 characters). Set alone, it keeps the stored password. |
+| `GIFOS_BOT_PASSWORD` | generated | The bot's password (the secret half). A `bot.json` that cannot be read is kept as `bot.json.bad-<ms>` and a new pair is generated. |
+| `GIFOS_BOT_PICTURE` | none | Path to the bot's picture: a GIF, PNG, JPEG or WebP file, at most 256 KB. Rooms show it on the bot's tile like anyone's picture. |
 | `GIFOS_STT_APP` | `offline-stt-whisper` | The store app for speech to text. `none` turns transcription off. |
 | `GIFOS_MCP_HOME` | `~/.gifos-mcp` | Browser profile, bot credential, `meetings.json`, `schedule.json`, transcripts, events. |
 | `GIFOS_HEADLESS` | `1` | `0` shows the browser windows. |
@@ -153,6 +160,7 @@ Shared tools (from gifos-mcp-core, the same in gifos-broadcast-mcp):
 | `tail_lines`, `tail_transcript` | `meeting_id?`, `since?`, `kinds?` | The lines after `since` without waiting. Each line is `{seq, ts, speaker, text, kind}`; `kind` is `speech`, `chat` or `spoken`. |
 | `get_transcript` | `meeting_id` | Plain text, one `speaker: words` line per caption, live and after the meeting. |
 | `say` | `meeting_id`, `text`, `voice?` | Meet Bot says the line out loud now (Kokoro). |
+| `set_bot_profile` | `name?`, `picture_path?`, `clear_picture?` | Sets how the bot looks: the name on its tile and its picture (GIF, PNG, JPEG or WebP, at most 256 KB). Both are kept in `GIFOS_MCP_HOME` for later starts. The picture applies to rooms joined afterwards. A new name is refused while the bot is in a room (end it first). `GIFOS_BOT_NAME` and `GIFOS_BOT_PICTURE`, when set, win again at the next start. |
 | `send_chat`, `share_content` | `meeting_id`, `text` | A chat line as the bot (up to 2000 characters). |
 | `get_meeting_state`, `snapshot` | `meeting_id` | Who is here; a PNG of the bot's page. |
 | `mute`, `unmute` | `meeting_id` | Stop or restart note-taking. |

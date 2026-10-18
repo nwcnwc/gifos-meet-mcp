@@ -25,6 +25,12 @@ details, and drives a headless **Meeting Bot** that joins, transcribes, and spea
 3. **You send the invite** with the user's own mail or calendar connector, after the user approves it. The
    server never sends mail and never writes a calendar file. Never put the room password inside the link.
 
+## How the bot looks
+
+- The operator may set its name and picture (`GIFOS_BOT_NAME`, `GIFOS_BOT_PICTURE`). If the user asks for another
+  name or picture, call `set_bot_profile` with `name` and/or `picture_path` (a GIF, PNG, JPEG or WebP file, at most
+  256 KB) before the bot joins; a new name is refused while the bot is in a room.
+
 ## Put the bot in the meeting
 
 - Now: `start_meeting` (a meeting you made) or `join_meeting` with a link (someone else's meeting).

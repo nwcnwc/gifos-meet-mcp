@@ -14,6 +14,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { chromium } from 'playwright';
 import { launchInstalled } from 'gifos-mcp-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -34,7 +36,17 @@ const EXPECT = new RegExp(process.env.E2E_EXPECT || (STT === 'synthetic' ? 'synt
 const PROOF = path.resolve(process.env.E2E_PROOF_DIR || path.join(REPO, '.e2e', 'proof'));
 const BASE = 'http://127.0.0.1:' + SITE_PORT;
 const TRANSCRIPT_WAIT_MS = Number(process.env.E2E_TRANSCRIPT_WAIT_MS || 300000);
-const CALL = { timeout: 600000 }; // the first call may install apps and start two browsers
+const CALL = { timeout: 600000 };
+const BOT_LOOK_NAME = 'Notes for Ada';
+// A real 2x2 PNG, the bot's picture.
+function tinyPng() {
+  const T = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = (b) => { let c = 0xffffffff; for (const x of b) c = T[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(2, 0); ihdr.writeUInt32BE(2, 4); ihdr[8] = 8; ihdr[9] = 2;
+  const raw = Buffer.from([0, 255, 0, 0, 0, 255, 0, 0, 0, 0, 255, 255, 255, 0]);
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+} // the first call may install apps and start two browsers
 
 let failures = 0;
 const t0 = Date.now();
@@ -143,7 +155,7 @@ async function main() {
     await client.connect(transport);
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    check('MCP server lists its tools over stdio', tools.length === 30 && names.includes('wait_lines') && !names.includes('set_voice') && names.includes('say') && names.includes('schedule_meeting') && names.includes('leave_meeting'), names.join(', '));
+    check('MCP server lists its tools over stdio', tools.length === 31 && names.includes('wait_lines') && names.includes('set_bot_profile') && !names.includes('set_voice') && names.includes('say') && names.includes('schedule_meeting') && names.includes('leave_meeting'), names.join(', '));
 
     const created = await client.callTool({ name: 'create_meeting', arguments: { name: 'Demo meeting', admin_password: 'owner-key-77' } }, undefined, CALL);
     const meeting = JSON.parse(text(created));
@@ -151,6 +163,11 @@ async function main() {
       meeting.link && meeting.link.startsWith(BASE + '/run.html#v=') && /&av=[0-9a-f]{24}/.test(meeting.link) && meeting.meeting_id &&
       meeting.invite && meeting.invite.join_url === meeting.link && !text(created).includes('owner-key-77'), meeting.link);
 
+    // The operator's name and picture for the bot, set before it joins.
+    const face = path.join(work, 'bot-face.png');
+    fs.writeFileSync(face, tinyPng());
+    const look = await client.callTool({ name: 'set_bot_profile', arguments: { name: BOT_LOOK_NAME, picture_path: face } }, undefined, CALL);
+    check('set_bot_profile takes a name and a picture', !look.isError && JSON.parse(text(look)).picture === true, text(look));
     const started = await client.callTool({ name: 'start_meeting', arguments: { meeting_id: meeting.meeting_id } }, undefined, CALL);
     const live = started.isError ? null : JSON.parse(text(started));
     if (!check('start_meeting: the bot installs from the store, joins and transcribes', live && live.state === 'live' && live.transcribing, text(started))) throw new Error('start failed');
@@ -189,6 +206,14 @@ async function main() {
     const micOn = await alice.waitForSelector('#mic:not(.off)', { timeout: 15000 }).then(() => true, () => false);
     check('Alice turns her microphone on', micOn);
     check('Alice sees the 🤖 bot badge', /bot/.test(tile), tile.replace(/\s+/g, ' '));
+    check('Alice sees the bot under the name its operator chose', tile.includes(BOT_LOOK_NAME), tile.replace(/\s+/g, ' '));
+    const faceHash = crypto.createHash('sha256').update(fs.readFileSync(face)).digest('hex');
+    let shown = '';
+    for (let i = 0; i < 60 && shown !== faceHash; i++) {
+      shown = await alice.evaluate(() => { const t = [...document.querySelectorAll('.tile')].find((x) => x.querySelector('.botbadge')); const img = t && t.querySelector('img.avatar-img'); return img ? img.getAttribute('data-hash') : ''; });
+      if (shown !== faceHash) await sleep(500);
+    }
+    check('Alice sees the picture its operator chose on the bot tile', shown === faceHash, shown || 'no picture');
     await alice.screenshot({ path: path.join(PROOF, 'alice-sees-bot.png') });
 
     let transcript = '';
