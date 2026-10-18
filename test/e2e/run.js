@@ -24,6 +24,7 @@ import { packApp, startSite } from './site.js';
 import { missingApps } from './listed-apps.js';
 import { workDir } from './work.js';
 import { SYNTH_STT, SYNTH_TTS, SYNTH_LLM } from './synth.js';
+import { heardWords } from './expect.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
@@ -33,7 +34,8 @@ const SITE_PORT = Number(process.env.E2E_SITE_PORT || 19510);
 const RELAY_PORT = Number(process.env.E2E_RELAY_PORT || 19511);
 const STT = process.env.E2E_STT || 'whisper';            // whisper | synthetic
 const SPEECH = process.env.E2E_SPEECH_WAV ? path.resolve(process.env.E2E_SPEECH_WAV) : ''; // Chromium needs an absolute path
-const EXPECT = new RegExp(process.env.E2E_EXPECT || (STT === 'synthetic' ? 'synthetic speech' : '[A-Za-z]{3,}'), 'i');
+const EXPECT_SPEC = process.env.E2E_EXPECT || '';
+const EXPECT = STT === 'synthetic' ? /synthetic speech/i : null;
 const PROOF = path.resolve(process.env.E2E_PROOF_DIR || path.join(REPO, '.e2e', 'proof'));
 // An already-set GIFOS_URL or E2E_GIFOS_URL is the site under test (the same
 // setting the gate and a person use). Otherwise this file serves GIFOS_APP_DIR.
@@ -96,7 +98,8 @@ async function main() {
   if (!GIVEN_URL) need(listed || (BOT_SRC && fs.existsSync(path.join(BOT_SRC, 'manifest.json'))),
     'this GifOS store has no meeting-bot listing: set MEETING_BOT_SRC to the meeting-bot source folder (gifos-apps-source)');
   need(STT === 'whisper' || STT === 'synthetic', 'E2E_STT is whisper or synthetic');
-  need(STT !== 'whisper' || (SPEECH && fs.existsSync(SPEECH)), 'whisper mode needs E2E_SPEECH_WAV, a WAV file of someone speaking');
+  need(STT !== 'whisper' || (SPEECH && fs.existsSync(SPEECH)), 'whisper mode needs E2E_SPEECH_WAV, a WAV generated with Kokoro fp32 (scripts/speech-wav.mjs in gifos-mcp-core)');
+  need(STT !== 'whisper' || heardWords('', EXPECT_SPEC).words > 0, 'whisper mode needs E2E_EXPECT, the words in that WAV separated by |; at least 80% of them must be heard');
   fs.mkdirSync(PROOF, { recursive: true });
   const work = workDir('gifos-mcp-e2e-');
   const wav = SPEECH || path.join(work, 'noise.wav');
@@ -229,16 +232,19 @@ async function main() {
     await alice.screenshot({ path: path.join(PROOF, 'alice-sees-bot.png') });
 
     let transcript = '';
+    let heard = { words: 0, hit: 0, ok: false };
+    const aliceSaid = (body) => /^Alice: /m.test(body) && (STT === 'synthetic' ? EXPECT.test(body) : heard.ok);
     const end = Date.now() + TRANSCRIPT_WAIT_MS;
     while (Date.now() < end) {
       const r = await client.callTool({ name: 'get_transcript', arguments: { meeting_id: meeting.meeting_id } }, undefined, CALL);
       transcript = r.isError ? '' : text(r);
-      if (/^Alice: /m.test(transcript) && EXPECT.test(transcript)) break;
+      if (STT === 'whisper') heard = heardWords(transcript, EXPECT_SPEC);
+      if (aliceSaid(transcript)) break;
       await sleep(5000);
     }
-    if (!EXPECT.test(transcript)) say('status at transcript timeout: ' + text(await client.callTool({ name: 'status', arguments: {} }, undefined, CALL)));
+    if (!aliceSaid(transcript)) say('status at transcript timeout: ' + text(await client.callTool({ name: 'status', arguments: {} }, undefined, CALL)));
     say('transcript so far:\n' + transcript.split('\n').slice(0, 12).map((l) => '    | ' + l).join('\n'));
-    check('get_transcript returns Alice\'s words', /^Alice: /m.test(transcript) && EXPECT.test(transcript), 'expect ' + EXPECT);
+    check('get_transcript returns Alice\'s words', aliceSaid(transcript), STT === 'whisper' ? (heard.hit + '/' + heard.words + ' words in ' + EXPECT_SPEC) : ('expect ' + EXPECT));
 
     if (STT === 'synthetic') {
       const said = await client.callTool({ name: 'say', arguments: { meeting_id: meeting.meeting_id, text: 'Hello from the bot' } }, undefined, CALL);

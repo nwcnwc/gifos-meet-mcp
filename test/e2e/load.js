@@ -38,6 +38,7 @@ import { packApp, startSite } from './site.js';
 import { workDir } from './work.js';
 import { SYNTH_LINE, SYNTH_STT, SYNTH_TTS, SYNTH_LLM } from './synth.js';
 import { sleep, procsUnder, usage, peopleBrowser, personIn, waitTiles, SPEECH_PATH } from './people.js';
+import { heardWords } from './expect.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
@@ -54,7 +55,7 @@ const SOAK_EVERY_MS = Number(process.env.E2E_SOAK_EVERY_MS || 60000);
 const CALL = { timeout: 600000 }; // a first join installs apps and starts a browser
 const STT = process.env.E2E_STT || 'synthetic';              // synthetic | whisper
 const SPEECH = process.env.E2E_SPEECH_WAV ? path.resolve(process.env.E2E_SPEECH_WAV) : '';
-const EXPECT = STT === 'whisper' ? new RegExp(process.env.E2E_EXPECT || '[A-Za-z]{3,}', 'i') : null;
+const EXPECT_SPEC = process.env.E2E_EXPECT || '';
 const BOT = { name: 'load-e2e-bot', password: 'load-e2e-pass-' + process.pid };
 
 let failures = 0;
@@ -92,7 +93,8 @@ async function main() {
     process.exit(2);
   }
   if (STT !== 'synthetic' && STT !== 'whisper') { console.error('e2e setup: E2E_STT is synthetic or whisper'); process.exit(2); }
-  if (STT === 'whisper' && !(SPEECH && fs.existsSync(SPEECH))) { console.error('e2e setup: E2E_STT=whisper needs E2E_SPEECH_WAV, a WAV of someone speaking'); process.exit(2); }
+  if (STT === 'whisper' && !(SPEECH && fs.existsSync(SPEECH))) { console.error('e2e setup: E2E_STT=whisper needs E2E_SPEECH_WAV, a WAV generated with Kokoro fp32'); process.exit(2); }
+  if (STT === 'whisper' && !heardWords('', EXPECT_SPEC).words) { console.error('e2e setup: E2E_STT=whisper needs E2E_EXPECT, the words in that WAV separated by |'); process.exit(2); }
   if (!STEPS.length) { console.error('e2e setup: E2E_ROOMS must list room counts, e.g. 1,4,8'); process.exit(2); }
   const max = STEPS[STEPS.length - 1];
   fs.mkdirSync(PROOF, { recursive: true });
@@ -109,7 +111,7 @@ async function main() {
   }
   const site = await startSite({ siteDir: SITE_DIR, port: SITE_PORT, extraApps: extra,
     files: STT === 'whisper' ? { [SPEECH_PATH]: { type: 'audio/wav', body: fs.readFileSync(SPEECH) } } : {} });
-  say('site ' + BASE + '; STT ' + STT + (STT === 'whisper' ? ' (' + path.basename(SPEECH) + ', expect ' + EXPECT + ')' : '') + '; steps ' + STEPS.join(',') + '; people: ' + (HUMAN_WS.length ? HUMAN_WS.length + ' remote browser(s)' : 'one local browser') + '; ' + os.cpus().length + ' cores, ' + Math.round(os.totalmem() / 2 ** 30) + ' GB');
+  say('site ' + BASE + '; STT ' + STT + (STT === 'whisper' ? ' (' + path.basename(SPEECH) + ', expect 80% of ' + EXPECT_SPEC + ')' : '') + '; steps ' + STEPS.join(',') + '; people: ' + (HUMAN_WS.length ? HUMAN_WS.length + ' remote browser(s)' : 'one local browser') + '; ' + os.cpus().length + ' cores, ' + Math.round(os.totalmem() / 2 ** 30) + ' GB');
 
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -192,7 +194,7 @@ async function main() {
           await call('get_transcript', { meeting_id: rooms[i].meeting_id }).catch(() => null);
           const lines = (await call('tail_lines', { meeting_id: rooms[i].meeting_id })).lines || [];
           const speech = lines.filter((l) => l.kind === 'speech');
-          const mine = speech.find((l) => l.speaker === people[i].name && (EXPECT ? EXPECT.test(l.text) : l.text.includes(SYNTH_LINE)));
+          const mine = speech.find((l) => l.speaker === people[i].name && (STT === 'whisper' ? heardWords(l.text, EXPECT_SPEC).ok : l.text.includes(SYNTH_LINE)));
           heard[i] = !!mine;
           if (mine) sample[i] = mine.text;
           others[i] = speech.some((l) => l.speaker !== people[i].name);
