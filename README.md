@@ -79,7 +79,7 @@ By hand, add a local (stdio) MCP server:
     "gifos-meet": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "git+https://github.com/nwcnwc/gifos-meet-mcp.git#05f1226e0ed4325a797654fa71e84961e719e0e2"],
+      "args": ["-y", "git+https://github.com/nwcnwc/gifos-meet-mcp.git#40574d39bd0e556374dbe4c6b11f3d88b2786f06"],
       "env": { "npm_config_ignore_scripts": "true", "ONNXRUNTIME_NODE_INSTALL_CUDA": "skip", "GIFOS_URL": "https://gifos.app" }
     }
   }
