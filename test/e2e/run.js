@@ -24,7 +24,7 @@ import { packApp, startSite } from './site.js';
 import { missingApps } from './listed-apps.js';
 import { workDir } from './work.js';
 import { SYNTH_STT, SYNTH_TTS, SYNTH_LLM } from './synth.js';
-import { heardWords } from './expect.js';
+import { expectSpecProblem, heardWords } from './expect.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
@@ -99,6 +99,7 @@ async function main() {
     'this GifOS store has no meeting-bot listing: set MEETING_BOT_SRC to the meeting-bot source folder (gifos-apps-source)');
   need(STT === 'whisper' || STT === 'synthetic', 'E2E_STT is whisper or synthetic');
   need(STT !== 'whisper' || (SPEECH && fs.existsSync(SPEECH)), 'whisper mode needs E2E_SPEECH_WAV, a WAV generated with Kokoro fp32 (scripts/speech-wav.mjs in gifos-mcp-core)');
+  need(!expectSpecProblem(EXPECT_SPEC), expectSpecProblem(EXPECT_SPEC));
   need(STT !== 'whisper' || heardWords('', EXPECT_SPEC).words > 0, 'whisper mode needs E2E_EXPECT, the words in that WAV separated by |; at least 80% of them must be heard');
   fs.mkdirSync(PROOF, { recursive: true });
   const work = workDir('gifos-mcp-e2e-');
