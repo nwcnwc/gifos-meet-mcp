@@ -23,7 +23,7 @@
   },
   "scripts": {
     "start": "node bin/gifos-meet-mcp.js",
-    "test": "node test/unit/run.js test/unit/tools.test.js test/unit/http.test.js test/unit/voice.test.js test/unit/invite.test.js test/unit/stage-a.test.js test/unit/stage-b.test.js test/unit/e2e-work.test.js test/unit/meetbot-reply.test.js",
+    "test": "node test/unit/run.js test/unit/tools.test.js test/unit/http.test.js test/unit/voice.test.js test/unit/invite.test.js test/unit/stage-a.test.js test/unit/stage-b.test.js test/unit/e2e-work.test.js test/unit/meetbot-reply.test.js test/unit/listed-apps.test.js",
     "test:e2e": "node test/e2e/run.js",
     "test:e2e:stage-b": "node test/e2e/stage-b.js",
     "test:e2e:load": "node test/e2e/load.js"
@@ -43,7 +43,7 @@
   "homepage": "https://github.com/nwcnwc/gifos-meet-mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
-    "gifos-mcp-core": "git+https://github.com/nwcnwc/gifos-mcp-core.git#a09b111ccc04d441e32d599fefec8d90ae01c212",
+    "gifos-mcp-core": "git+https://github.com/nwcnwc/gifos-mcp-core.git#a83789afb03198a36b1b6fae90cf4b6dacf21934",
     "zod": "3.25.76"
   },
   "devDependencies": {

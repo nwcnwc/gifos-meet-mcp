@@ -21,6 +21,7 @@ import { launchInstalled } from 'gifos-mcp-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { packApp, startSite } from './site.js';
+import { missingApps } from './listed-apps.js';
 import { workDir } from './work.js';
 import { SYNTH_STT, SYNTH_TTS, SYNTH_LLM } from './synth.js';
 
@@ -101,7 +102,8 @@ async function main() {
   const wav = SPEECH || path.join(work, 'noise.wav');
   if (!SPEECH) noiseWav(wav);
   if (GIVEN_URL && STT === 'synthetic') {
-    need(false, 'GIFOS_URL is set, so this run does not add stt-synthetic, tts-synthetic, or llm-synthetic. Point GIFOS_URL at a site that already lists those apps, or unset GIFOS_URL and use a local checkout.');
+    const missing = await missingApps(BASE, ['stt-synthetic', 'tts-synthetic', 'llm-synthetic']);
+    need(missing.length === 0, 'GIFOS_URL ' + BASE + ' is missing ' + missing.join(', ') + '. Those apps have to be listed, or unset GIFOS_URL and use a local checkout.');
   }
   say(GIVEN_URL
     ? ('site ' + BASE + ' (GIFOS_URL); STT ' + STT + '; speech ' + path.basename(wav))

@@ -62,7 +62,7 @@ export function registerMeetTools(server, ctx) {
     inputSchema: {
       link: z.string().url().max(2048).describe('The GifOS meeting link.'),
       password: z.string().max(200).optional().describe('The room password guests type, if the meeting has one.'),
-      topic: z.string().max(200).optional(),
+      topic: z.string().max(200).optional().describe('A name for this meeting in the local list.'),
     },
   }, guarded(async ({ link, password, topic }) => {
     const { meeting, note } = await joinByLink(link, password, topic);
