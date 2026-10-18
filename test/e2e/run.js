@@ -100,7 +100,12 @@ async function main() {
   const work = workDir('gifos-mcp-e2e-');
   const wav = SPEECH || path.join(work, 'noise.wav');
   if (!SPEECH) noiseWav(wav);
-  say('site ' + BASE + ' from the gifos-app checkout; STT ' + STT + '; speech ' + path.basename(wav));
+  if (GIVEN_URL && STT === 'synthetic') {
+    need(false, 'GIFOS_URL is set, so this run does not add stt-synthetic, tts-synthetic, or llm-synthetic. Point GIFOS_URL at a site that already lists those apps, or unset GIFOS_URL and use a local checkout.');
+  }
+  say(GIVEN_URL
+    ? ('site ' + BASE + ' (GIFOS_URL); STT ' + STT + '; speech ' + path.basename(wav))
+    : ('site ' + BASE + ' from the gifos-app checkout; STT ' + STT + '; speech ' + path.basename(wav)));
 
   // ---- local GifOS with Meeting Bot in its store (skipped when GIFOS_URL is set) ----
   const logo = GIVEN_URL ? null : fs.readFileSync(path.join(REPO, 'assets', 'logo-512.png'));
@@ -280,7 +285,7 @@ async function main() {
     if (human) await human.close().catch(() => {});
     await client.close().catch(() => {});
     if (relayProc) relayProc.kill();
-    site.close();
+    if (site && site.close) { try { await site.close(); } catch (e) { /* already closed */ } }
   }
   say(failures ? failures + ' FAILURE(S)' : 'ALL PASS');
   say('screenshots in ' + PROOF);
