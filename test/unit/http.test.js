@@ -35,7 +35,7 @@ test('streamable HTTP on 127.0.0.1 with a bearer token', async (t) => {
   await client.connect(new StreamableHTTPClientTransport(url, { requestInit: { headers: { authorization: 'Bearer test-token-123' } } }));
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name);
-  assert.equal(tools.length, 30);
+  assert.equal(tools.length, 31);
   assert.ok(names.includes('say') && names.includes('tail_transcript') && names.includes('wait_lines') && !names.includes('set_voice'));
   assert.ok(names.includes('schedule_meeting') && names.includes('capacity_status'));
   const r = JSON.parse((await client.callTool({ name: 'create_meeting', arguments: { name: 'Demo meeting', admin_password: 'owner-key-77' } })).content[0].text);
