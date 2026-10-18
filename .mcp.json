@@ -3,7 +3,10 @@
     "gifos-meet": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "github:nwcnwc/gifos-meet-mcp#main"],
+      "args": [
+        "-y",
+        "git+https://github.com/nwcnwc/gifos-meet-mcp.git#89449d311c1392454a43e770b8a5bebcc53be672"
+      ],
       "env": {
         "npm_config_ignore_scripts": "true",
         "ONNXRUNTIME_NODE_INSTALL_CUDA": "skip",
