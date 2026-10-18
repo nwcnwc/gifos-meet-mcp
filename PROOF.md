@@ -1,4 +1,19 @@
-# Proof: gifos-mcp end to end
+# Proof: gifos-meet-mcp end to end
+
+## 0.5.0 (gifos-mcp-core `9334095`), 2026-10-17
+
+The split into gifos-mcp-core + gifos-meet-mcp, with no language model and Meet Bot's switches off.
+Linux x64, Node v22.22.1, Playwright 1.61.1 (Chromium, headless), dependencies installed with `--ignore-scripts`.
+
+| Suite | GifOS site | Meeting Bot | Result |
+|---|---|---|---|
+| gifos-mcp-core `npm test` (links vectors, invite details, shared tools with `wait_lines`, pinned Kokoro with real speech) | none | none | 63 pass, 0 fail |
+| `npm test` (all tools, `--http`, supervisor and workers, the real Meeting Bot bundle staying quiet and speaking `say`) | none | the bundle in `test/fixtures/meeting-bot` | 95 pass, 0 fail |
+| `npm run test:e2e`, synthetic speech-to-text, a room the host runs (`av=`) | `gifos-app` `release/0.9.23` (`9bfeead`) | packed from `gifos-apps-source` (`b66b0de`) | 20/20 checks, 21 s ([log](runs/e2e-synthetic-0.5.0.log)) |
+
+Everything below is the earlier gifos-mcp history.
+
+# gifos-mcp (before the split)
 
 These runs are from 2026-10-15 at commit `e17a899`, on Linux x64 with Node v22.23.1 and Playwright 1.61.1
 (Chromium 149, headless). Each one was run with `nice -n 10`.

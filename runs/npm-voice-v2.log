@@ -219,11 +219,11 @@ ok 35 - listing the model folder skips a file renamed away under it
   duration_ms: 0.875692
   type: 'test'
   ...
-# [gifos-mcp] 2026-10-17T22:40:41.368Z Kokoro: loading onnx-community/Kokoro-82M-v1.0-ONNX (q8) into /home/nathan/.cache/gifos-mcp-test-kokoro/kokoro
+# [gifos-mcp] 2026-10-17T22:40:41.368Z Kokoro: loading onnx-community/Kokoro-82M-v1.0-ONNX (q8) into ~/.cache/gifos-mcp-test-kokoro/kokoro
 # [gifos-mcp] 2026-10-17T22:40:41.414Z Kokoro: config.json 100%
 # [gifos-mcp] 2026-10-17T22:40:41.416Z Kokoro: tokenizer.json 100%
 # [gifos-mcp] 2026-10-17T22:40:41.416Z Kokoro: tokenizer_config.json 100%
-# [gifos-mcp] 2026-10-17T22:40:41.668Z Kokoro: the weights in /home/nathan/.cache/gifos-mcp-test-kokoro/kokoro/onnx-community/Kokoro-82M-v1.0-ONNX did not load (Unable to get model file path or buffer.); downloading them again
+# [gifos-mcp] 2026-10-17T22:40:41.668Z Kokoro: the weights in ~/.cache/gifos-mcp-test-kokoro/kokoro/onnx-community/Kokoro-82M-v1.0-ONNX did not load (Unable to get model file path or buffer.); downloading them again
 # Unable to determine content-length from response headers. Will expand buffer when needed.
 # [gifos-mcp] 2026-10-17T22:40:41.935Z Kokoro: tokenizer.json 100%
 # [gifos-mcp] 2026-10-17T22:40:41.992Z Kokoro: config.json 100%
@@ -651,12 +651,12 @@ not ok 99 - a join that never answers is checked against the worker's own room l
   ---
   duration_ms: 207.667515
   type: 'test'
-  location: '/home/nathan/rel23-gate-1017/gifos-mcp/test/unit/stage-b.test.js:841:1'
+  location: '<repo>/test/unit/stage-b.test.js:841:1'
   failureType: 'testCodeFailure'
   error: 'worker 0 did not boot within 200ms'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    ChildProcess.<anonymous> (file:///home/nathan/rel23-gate-1017/gifos-mcp/src/pool.js:207:25)
+    ChildProcess.<anonymous> (file://<repo>/src/pool.js:207:25)
     ChildProcess.emit (node:events:519:28)
     ChildProcess._handle.onexit (node:internal/child_process:293:12)
   ...
@@ -666,12 +666,12 @@ not ok 100 - a join that never answers but whose room Meet Bot holds is left, so
   ---
   duration_ms: 211.39144
   type: 'test'
-  location: '/home/nathan/rel23-gate-1017/gifos-mcp/test/unit/stage-b.test.js:860:1'
+  location: '<repo>/test/unit/stage-b.test.js:860:1'
   failureType: 'testCodeFailure'
   error: 'worker 0 did not boot within 200ms'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    ChildProcess.<anonymous> (file:///home/nathan/rel23-gate-1017/gifos-mcp/src/pool.js:207:25)
+    ChildProcess.<anonymous> (file://<repo>/src/pool.js:207:25)
     ChildProcess.emit (node:events:519:28)
     ChildProcess._handle.onexit (node:internal/child_process:293:12)
   ...

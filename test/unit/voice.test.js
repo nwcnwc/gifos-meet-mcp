@@ -1,5 +1,6 @@
-// Voice is a setting handed to Meet Bot. The page script does not call a
-// model and this process does not play audio into the meeting. No browser.
+// There is no text model. Meet Bot is handed its two switches off on every
+// join and speaks only what say gives it. This process does not play audio
+// into the meeting. No browser.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -9,15 +10,17 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ResourceUpdatedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createServer } from '../../src/server.js';
-import { loadConfig } from '../../src/config.js';
-import { MeetingStore } from '../../src/meetings.js';
-import { MeetingBotDriver } from '../../src/driver.js';
-import { LiveTranscript, watchCaptions } from '../../src/voice/live.js';
-import { voiceSettings, scrub } from '../../src/voice/settings.js';
-import { bridgeScript, hostRoles } from '../../src/voice/providers.js';
+import { loadConfig } from 'gifos-mcp-core/src/config.js';
+import { MeetingStore } from 'gifos-mcp-core/src/meetings.js';
+import { MeetingBotDriver } from 'gifos-mcp-core/src/driver.js';
+import { LiveTranscript, watchCaptions } from 'gifos-mcp-core/src/voice/live.js';
+import { scrub } from 'gifos-mcp-core/src/voice/settings.js';
+import { bridgeScript, hostRoles } from 'gifos-mcp-core/src/voice/providers.js';
 import { tmpHome } from './fixtures/tmp-home.js';
 
 const KEY = 'sk-test-key-which-must-stay-here';
+const BOT_PW = 'quiet-cedar-42-secret';
+const OFF = { respond_to_command: false, speak: false };
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -33,7 +36,8 @@ function jsFiles(dir, acc) {
 
 test('src and bin do not call a chat model or play into the meeting', () => {
   const forbidden = ['/chat/completions', '/audio/speech', '/tts', '__gifosPlayEncoded', '__gifosQuiet', 'MeetingVoice', 'chatDeltas', 'mouthInitScript'];
-  const files = [...jsFiles(path.join(ROOT, 'src'), []), ...jsFiles(path.join(ROOT, 'bin'), [])];
+  const core = path.join(ROOT, 'node_modules', 'gifos-mcp-core', 'src');
+  const files = [...jsFiles(path.join(ROOT, 'src'), []), ...jsFiles(path.join(ROOT, 'bin'), []), ...jsFiles(core, [])];
   assert.ok(files.length > 5);
   for (const file of files) {
     const src = fs.readFileSync(file, 'utf8');
@@ -56,35 +60,18 @@ test('src and bin do not call a chat model or play into the meeting', () => {
   }
 });
 
-test('local voice settings name providers, and public text does not carry the key', () => {
-  const voice = {
-    respondToCommand: true,
-    conversationVoice: 'local',
-    url: 'http://127.0.0.1:9/v1',
-    model: 'local-model',
-    key: KEY,
-  };
-  const settings = voiceSettings(voice);
-  assert.equal(settings.llm.provider, 'smartest');
-  assert.equal('key' in settings.llm, false);
-  assert.equal('url' in settings.llm, false);
-  assert.equal(settings.tts.provider, 'tts');
-  assert.equal(settings.tts.engine, 'kokoro');
-  assert.equal(settings.tts.app, 'mcp-tts-kokoro');
-  assert.equal(settings.tts.voice, 'af_heart');
-  assert.equal(JSON.stringify(settings).includes(KEY), false);
-  assert.equal(JSON.stringify(settings).includes('127.0.0.1'), false);
-  assert.equal('llm' in voiceSettings({ ...voice, conversationVoice: 'grok' }), false);
-  assert.equal('tts' in voiceSettings({ ...voice, conversationVoice: 'grok' }), false);
-  assert.equal('llm' in voiceSettings({ ...voice, conversationVoice: 'none' }), false);
-  assert.equal('tts' in voiceSettings({ ...voice, conversationVoice: 'none' }), false);
+test('no model setting is read, and scrub hides a secret', () => {
+  const cfg = loadConfig({ GIFOS_MCP_HOME: '/x', GIFOS_LLM_KEY: KEY, GIFOS_LLM_URL: 'http://127.0.0.1:9/v1', GIFOS_LLM_MODEL: 'm' });
+  assert.equal(JSON.stringify(cfg).includes(KEY), false);
+  assert.equal(JSON.stringify(cfg).includes('127.0.0.1:9'), false);
+  assert.deepEqual(hostRoles(cfg), ['tts']);
   assert.equal(scrub('failed ' + KEY, KEY), 'failed [redacted]');
   assert.equal(scrub('fine', ''), 'fine');
 });
 
-test('the key stays out of the page until MeetingBot.setVoice exists', async () => {
+test('setVoice and the other Meet Bot methods report a gap until the app has them', async () => {
   const home = tmpHome('gifos-mcp-drv-');
-  const cfg = loadConfig({ GIFOS_MCP_HOME: home, GIFOS_URL: 'http://127.0.0.1:19510', GIFOS_LLM_KEY: KEY });
+  const cfg = loadConfig({ GIFOS_MCP_HOME: home, GIFOS_URL: 'http://127.0.0.1:19510' });
   const driver = new MeetingBotDriver(cfg, { name: 'harbor-maple', password: 'quiet-cedar-42' });
   const seen = [];
   driver.state = 'ready';
@@ -98,9 +85,7 @@ test('the key stays out of the page until MeetingBot.setVoice exists', async () 
       },
     },
   };
-  const settings = voiceSettings(cfg.voice);
-  assert.equal(settings.llm.provider, 'smartest');
-  assert.equal('key' in settings.llm, false);
+  const settings = { ...OFF };
   const missing = await driver.setVoice(settings);
   assert.equal(missing.applied, false);
   assert.match(missing.gap, /setVoice/);
@@ -118,8 +103,7 @@ test('the key stays out of the page until MeetingBot.setVoice exists', async () 
   assert.equal(handed.applied, true);
   assert.equal(seen.length, 2);
   assert.equal(seen[0].arg, undefined);
-  assert.equal(seen[1].arg.llm.provider, 'smartest');
-  assert.equal('key' in seen[1].arg.llm, false);
+  assert.deepEqual(seen[1].arg, OFF);
   assert.equal(seen[1].src.includes('setVoice'), true);
 
   seen.length = 0;
@@ -184,14 +168,11 @@ class FakeBot {
   async info() { return { state: 'ready', bot_name: 'notes-test' }; }
 }
 
-test('say and the transcript go through Meet Bot, and the key stays out of tool text', async (t) => {
+test('say and the transcript go through Meet Bot, and the bot password stays out of tool text', async (t) => {
   const home = tmpHome('gifos-mcp-voice-');
   const cfg = loadConfig({
     GIFOS_MCP_HOME: home,
     GIFOS_URL: 'http://127.0.0.1:19510',
-    GIFOS_LLM_URL: 'http://127.0.0.1:9/v1',
-    GIFOS_LLM_KEY: KEY,
-    GIFOS_LLM_MODEL: 'local-model',
     GIFOS_TTS_URL: 'http://127.0.0.1:10/voice',
     GIFOS_STT_URL: 'http://127.0.0.1:11/captions',
   });
@@ -200,7 +181,7 @@ test('say and the transcript go through Meet Bot, and the key stays out of tool 
   const live = new LiveTranscript(home);
   const captions = watchCaptions({ meetings, bot, live, intervalMs: 20, botName: 'notes-test' });
   t.after(() => captions.stopAll());
-  const server = createServer({ cfg, meetings, bot, live, captions, botName: 'notes-test' });
+  const server = createServer({ cfg, meetings, bot, live, captions, botName: 'notes-test', botPassword: BOT_PW });
   const [a, b] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'unit', version: '1' });
   const updates = [];
@@ -213,22 +194,18 @@ test('say and the transcript go through Meet Bot, and the key stays out of tool 
   const listed = await json('list_meetings');
   created.meeting_id = listed.meetings.find((m) => m.link === created.link).meeting_id;
   await json('start_meeting', { meeting_id: created.meeting_id });
-  // Contract version 2: each join hands only the two switches.
-  assert.deepEqual(bot.voice, { respond_to_command: true, speak: true });
+  // Contract version 2: each join hands only the two switches, both off.
+  assert.deepEqual(bot.voice, OFF);
   assert.equal(bot.calls.some((c) => c[0] === 'say'), false);
 
   const status = await json('status');
   assert.equal(status.voice.handed, true);
-  assert.equal(status.voice.conversation_voice, 'local');
-  assert.equal(status.voice.model, 'local-model');
+  assert.equal(status.voice.speak, false);
   assert.equal(status.voice.gap, null);
-  assert.equal(JSON.stringify(status).includes(KEY), false);
-  assert.equal(JSON.stringify(status).includes('127.0.0.1:9'), false);
+  assert.equal(JSON.stringify(status).includes(BOT_PW), false);
   assert.equal(JSON.stringify(status).includes('127.0.0.1:10'), false);
   assert.equal(JSON.stringify(status).includes('127.0.0.1:11'), false);
-  assert.equal(JSON.stringify(status).includes('api.x.ai'), false);
   assert.equal(status.voice.tts.engine, 'http');
-  assert.equal(status.voice.stt, 'configured');
 
   const uri = 'gifos://meeting/' + created.meeting_id + '/transcript';
   const resources = await client.listResources();
@@ -241,7 +218,6 @@ test('say and the transcript go through Meet Bot, and the key stays out of tool 
   const said = await json('say', { meeting_id: created.meeting_id, text: 'I will take that question.' });
   assert.deepEqual(said, { meeting_id: created.meeting_id, spoken: true });
   assert.deepEqual(bot.calls.filter((c) => c[0] === 'interject'), [['interject', 'mt_1', 'I will take that question.']]);
-  assert.equal(JSON.stringify(said).includes(KEY), false);
 
   const tail = await json('tail_transcript', { meeting_id: created.meeting_id });
   assert.deepEqual(tail.lines.map((l) => l.kind), ['speech', 'spoken']);
@@ -252,21 +228,13 @@ test('say and the transcript go through Meet Bot, and the key stays out of tool 
   const resource = await client.readResource({ uri });
   assert.equal(resource.contents[0].mimeType, 'application/x-ndjson');
   assert.match(resource.contents[0].text, /What should we do next/);
-  assert.equal(resource.contents[0].text.includes(KEY), false);
+  assert.equal(resource.contents[0].text.includes(BOT_PW), false);
 
-  const grok = await json('set_voice', { conversation_voice: 'grok', respond_to_command: false });
-  assert.equal(grok.conversation_voice, 'grok');
-  assert.equal(grok.respond_to_command, false);
-  assert.equal(grok.model, null);
-  assert.equal(grok.handed, true);
-  assert.deepEqual(bot.voice, { respond_to_command: false, speak: true });
-  assert.equal(JSON.stringify(grok).includes(KEY), false);
-
-  bot.interject = async () => { throw new Error('refused ' + KEY); };
+  bot.interject = async () => { throw new Error('refused ' + BOT_PW); };
   const boom = await call('say', { meeting_id: created.meeting_id, text: 'again' });
   assert.equal(boom.isError, true);
   assert.match(boom.content[0].text, /refused \[redacted\]/);
-  assert.equal(boom.content[0].text.includes(KEY), false);
+  assert.equal(boom.content[0].text.includes(BOT_PW), false);
 
   const ended = await json('end_meeting', { meeting_id: created.meeting_id });
   assert.equal(ended.state, 'ended');
@@ -274,7 +242,7 @@ test('say and the transcript go through Meet Bot, and the key stays out of tool 
   assert.equal(after.lines.length, 2);
   const file = path.join(home, 'transcripts', created.meeting_id + '.jsonl');
   assert.equal(fs.statSync(file).mode & 0o777, 0o600);
-  assert.equal(fs.readFileSync(file, 'utf8').includes(KEY), false);
+  assert.equal(fs.readFileSync(file, 'utf8').includes(BOT_PW), false);
   await client.close();
 });
 
@@ -287,16 +255,13 @@ function oldVoiceCall(settings) {
   return !!(settings && (settings.conversation_voice != null || settings.llm || settings.tts || settings.stt));
 }
 
-test('join_meeting hands only respond_to_command and speak, never the old voice call the new Meet Bot refuses', async () => {
+test('join_meeting hands only respond_to_command and speak (both off), never the old voice call the new Meet Bot refuses', async () => {
   const home = tmpHome('gifos-mcp-newvoice-');
   const cfg = loadConfig({
     GIFOS_MCP_HOME: home,
     GIFOS_URL: 'http://127.0.0.1:19510',
-    GIFOS_LLM_URL: 'http://127.0.0.1:9/v1',
-    GIFOS_LLM_KEY: KEY,
-    GIFOS_LLM_MODEL: 'local-model',
   });
-  assert.deepEqual(hostRoles(cfg), ['tts', 'smartest']);
+  assert.deepEqual(hostRoles(cfg), ['tts']);
   const bot = {
     calls: [],
     seq: 0,
@@ -328,7 +293,7 @@ test('join_meeting hands only respond_to_command and speak, never the old voice 
   assert.equal(body.state, 'live');
   assert.equal(joined.content[0].text.includes(NEW_MEET_BOT_VOICE), false);
   const handed = bot.calls.filter((c) => c[0] === 'setVoice').map((c) => c[1]);
-  assert.deepEqual(handed, [{ respond_to_command: true, speak: true }]);
+  assert.deepEqual(handed, [OFF]);
   assert.equal(bot.calls.some((c) => c[0] === 'join'), true);
   await client.close();
 });
@@ -417,7 +382,7 @@ test('a transcript append that fails (disk full) keeps every caption line and th
   const live = new LiveTranscript(home);
   const captions = watchCaptions({ meetings, bot, live, intervalMs: 20, botName: 'notes-test' });
   t.after(() => captions.stopAll());
-  const server = createServer({ cfg, meetings, bot, live, captions, botName: 'notes-test' });
+  const server = createServer({ cfg, meetings, bot, live, captions, botName: 'notes-test', botPassword: BOT_PW });
   const [a, b] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'unit', version: '1' });
   await Promise.all([server.connect(a), client.connect(b)]);

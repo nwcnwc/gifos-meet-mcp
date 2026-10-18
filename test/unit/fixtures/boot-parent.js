@@ -2,8 +2,8 @@
 // the Kokoro weights from a mirror that never answers. Forked by
 // stage-b.test.js so the test can SIGKILL it during that boot. argv: home,
 // weights host. Prints the worker pid once it is forked.
-import { loadConfig } from '../../../src/config.js';
-import { WorkerPool } from '../../../src/pool.js';
+import { loadConfig } from 'gifos-mcp-core/src/config.js';
+import { WorkerPool } from 'gifos-mcp-core/src/pool.js';
 
 const [home, host] = process.argv.slice(2);
 const cfg = loadConfig({ GIFOS_MCP_HOME: home, GIFOS_VOICE: '0', GIFOS_KOKORO_URL: host });

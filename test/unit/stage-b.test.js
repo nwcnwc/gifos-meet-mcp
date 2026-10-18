@@ -11,12 +11,12 @@ import { fork } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../../src/server.js';
-import { loadConfig } from '../../src/config.js';
-import { MeetingStore } from '../../src/meetings.js';
-import { EventLog } from '../../src/events.js';
-import { ScheduleStore } from '../../src/schedule.js';
-import { WorkerPool, splitSession, workerIdentity, workerTmpDir } from '../../src/pool.js';
-import { dropLostMeetings } from '../../src/supervisor.js';
+import { loadConfig } from 'gifos-mcp-core/src/config.js';
+import { MeetingStore } from 'gifos-mcp-core/src/meetings.js';
+import { EventLog } from 'gifos-mcp-core/src/events.js';
+import { ScheduleStore } from 'gifos-mcp-core/src/schedule.js';
+import { WorkerPool, splitSession, workerIdentity, workerTmpDir } from 'gifos-mcp-core/src/pool.js';
+import { dropLostMeetings } from 'gifos-mcp-core/src/supervisor.js';
 import { tmpHome } from './fixtures/tmp-home.js';
 
 const FAKE = fileURLToPath(new URL('./fixtures/fake-worker.js', import.meta.url));

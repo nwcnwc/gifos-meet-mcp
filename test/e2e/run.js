@@ -6,7 +6,7 @@
 // 1. Serves GIFOS_APP_DIR on 127.0.0.1:19510; Meeting Bot comes from its store
 //    listing, or is packed from MEETING_BOT_SRC and added to that store.
 // 2. Starts a relay (RELAY_SCRIPT, on 19511) or uses E2E_RELAY.
-// 3. Spawns bin/gifos-mcp.js over stdio and drives it with an MCP client:
+// 3. Spawns bin/gifos-meet-mcp.js over stdio and drives it with an MCP client:
 //    create_meeting -> start_meeting -> a second headless browser joins as
 //    "Alice" and plays speech -> get_transcript is non-empty -> share_content,
 //    mute/unmute, list_meetings, status -> end_meeting -> the bot is gone.
@@ -122,7 +122,7 @@ async function main() {
   const mcpHome = path.join(work, 'mcp-home');
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [path.join(REPO, 'bin', 'gifos-mcp.js')],
+    args: [path.join(REPO, 'bin', 'gifos-meet-mcp.js')],
     env: {
       ...process.env,
       GIFOS_URL: BASE,
@@ -131,11 +131,6 @@ async function main() {
       GIFOS_STT_APP: STT === 'synthetic' ? 'stt-synthetic' : 'offline-stt-whisper',
       GIFOS_TTS_APP: STT === 'synthetic' ? 'tts-synthetic' : '',
       GIFOS_TTS_ENGINE: STT === 'synthetic' ? 'kokoro' : 'none',
-      GIFOS_LLM_APP: STT === 'synthetic' ? 'llm-synthetic' : '',
-      GIFOS_CONVERSATION_VOICE: STT === 'synthetic' ? 'local' : 'none',
-      GIFOS_VOICE: STT === 'synthetic' ? '' : '0',
-      GIFOS_LLM_KEY: '',
-      GIFOS_LLM_URL: '',
       GIFOS_MCP_SHOTS: PROOF,
     },
     stderr: 'pipe',
@@ -147,13 +142,13 @@ async function main() {
     await client.connect(transport);
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    check('MCP server lists its tools over stdio', tools.length === 30 && names.includes('set_voice') && names.includes('say') && names.includes('schedule_meeting') && names.includes('leave_meeting'), names.join(', '));
+    check('MCP server lists its tools over stdio', tools.length === 30 && names.includes('wait_lines') && !names.includes('set_voice') && names.includes('say') && names.includes('schedule_meeting') && names.includes('leave_meeting'), names.join(', '));
 
     const created = await client.callTool({ name: 'create_meeting', arguments: { name: 'Demo meeting', admin_password: 'owner-key-77' } }, undefined, CALL);
     const meeting = JSON.parse(text(created));
-    check('create_meeting returns a link on the local GifOS', meeting.link && meeting.link.startsWith(BASE + '/run.html#v=') && !meeting.meeting_id, meeting.link);
-    const listed = JSON.parse(text(await client.callTool({ name: 'list_meetings', arguments: {} }, undefined, CALL)));
-    meeting.meeting_id = listed.meetings.find((m) => m.link === meeting.link).meeting_id;
+    check('create_meeting returns a link on the local GifOS, a room the host runs, and the invite details',
+      meeting.link && meeting.link.startsWith(BASE + '/run.html#v=') && /&av=[0-9a-f]{24}/.test(meeting.link) && meeting.meeting_id &&
+      meeting.invite && meeting.invite.join_url === meeting.link && !text(created).includes('owner-key-77'), meeting.link);
 
     const started = await client.callTool({ name: 'start_meeting', arguments: { meeting_id: meeting.meeting_id } }, undefined, CALL);
     const live = started.isError ? null : JSON.parse(text(started));
@@ -211,31 +206,18 @@ async function main() {
       const said = await client.callTool({ name: 'say', arguments: { meeting_id: meeting.meeting_id, text: 'Hello from the bot' } }, undefined, CALL);
       const spoken = said.isError ? null : JSON.parse(text(said));
       check('say speaks through the assigned text-to-speech provider', spoken && spoken.spoken === true, text(said));
-      let round = null;
-      let sawConversation = 0;
-      const voiceEnd = Date.now() + 90000;
-      while (Date.now() < voiceEnd) {
-        round = JSON.parse(text(await client.callTool({ name: 'status', arguments: {} }, undefined, CALL)));
-        const cmds = (round.bot && round.bot.commands) || [];
-        const errs = (round.bot && round.bot.errors) || [];
-        if (errs.length) break;
-        if (cmds.some((c) => c.op === 'conversation')) {
-          if (!sawConversation) sawConversation = Date.now();
-          if (Date.now() - sawConversation > 2500) break;
-        }
-        await sleep(500);
-      }
-      const cmds = (round && round.bot && round.bot.commands) || [];
-      const errs = (round && round.bot && round.bot.errors) || [];
-      const voice = (round && round.voice) || {};
-      check('status handed local voice to Meet Bot without a URL or a key',
-        voice.conversation_voice === 'local' && voice.handed === true && voice.tts && voice.tts.app === 'tts-synthetic' &&
-        !JSON.stringify(voice).includes('127.0.0.1') && !JSON.stringify(round.bot.commands || []).includes('gifos-provider'),
-        JSON.stringify(voice));
-      check('a converse turn round-trips through speech-to-text, the language model, and speech',
-        cmds.some((c) => c.op === 'conversation') && errs.length === 0,
-        JSON.stringify({ commands: cmds, errors: errs }));
+      // The bot answers nothing on its own: no conversation turn, switches off.
+      await sleep(5000);
+      const round = JSON.parse(text(await client.callTool({ name: 'status', arguments: {} }, undefined, CALL)));
+      const cmds = (round.bot && round.bot.commands) || [];
+      const voice = round.voice || {};
+      check('status: Meet Bot holds both switches off and spoke no turn of its own',
+        voice.handed === true && voice.speak === false && voice.respond_to_command === false && !cmds.some((c) => c.op === 'conversation'),
+        JSON.stringify({ voice, commands: cmds }));
     }
+
+    const waited = JSON.parse(text(await client.callTool({ name: 'wait_lines', arguments: { meeting_id: meeting.meeting_id, since: 0, timeout_ms: 1000 } }, undefined, CALL)));
+    check('wait_lines returns Alice\'s lines', waited.lines.some((l) => l.speaker === 'Alice' && l.kind === 'speech'), JSON.stringify(waited.lines.slice(0, 3)));
 
     const shared = await client.callTool({ name: 'share_content', arguments: { meeting_id: meeting.meeting_id, text: 'Agenda for the demo meeting: intro, questions.' } }, undefined, CALL);
     check('share_content answers', !shared.isError, text(shared));

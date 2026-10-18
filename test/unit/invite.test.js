@@ -7,9 +7,9 @@ import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../../src/server.js';
-import { loadConfig } from '../../src/config.js';
-import { MeetingStore } from '../../src/meetings.js';
-import { formatInvite, plainLink, urlsOf, PASSWORD_LINK_NOTE } from '../../src/invite.js';
+import { loadConfig } from 'gifos-mcp-core/src/config.js';
+import { MeetingStore } from 'gifos-mcp-core/src/meetings.js';
+import { formatInvite, plainLink, urlsOf, PASSWORD_LINK_NOTE } from 'gifos-mcp-core/src/invite.js';
 import { tmpHome } from './fixtures/tmp-home.js';
 
 const ADMIN = 'HarborNorth77';
@@ -67,7 +67,7 @@ test('tool output carries the room password only as its own field, and never the
     name: 'create_meeting',
     arguments: { name: 'Demo', admin_password: ADMIN },
   })).content[0].text);
-  assert.deepEqual(Object.keys(created), ['link']);
+  assert.deepEqual(Object.keys(created).sort(), ['host_runs_room', 'invite', 'link', 'meeting_id']);
   assert.equal(created.link.includes(ADMIN), false);
   assert.equal(JSON.stringify(created).includes(ADMIN), false);
   assert.equal(fs.readFileSync(path.join(home, 'meetings.json'), 'utf8').includes(ADMIN), false);

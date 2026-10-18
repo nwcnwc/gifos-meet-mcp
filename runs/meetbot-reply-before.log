@@ -9,7 +9,7 @@ not ok 1 - a joined bot answers "Hey bot, what is the capital of France?" out lo
   ---
   duration_ms: 4715.452134
   type: 'test'
-  location: '/home/nathan/rel23-gate-1017/gifos-mcp/test/unit/meetbot-reply.test.js:99:1'
+  location: '<repo>/test/unit/meetbot-reply.test.js:99:1'
   failureType: 'testCodeFailure'
   error: |-
     Smartest was asked once
@@ -22,7 +22,7 @@ not ok 1 - a joined bot answers "Hey bot, what is the capital of France?" out lo
   actual: 0
   operator: 'strictEqual'
   stack: |-
-    TestContext.<anonymous> (file:///home/nathan/rel23-gate-1017/gifos-mcp/test/unit/meetbot-reply.test.js:156:10)
+    TestContext.<anonymous> (file://<repo>/test/unit/meetbot-reply.test.js:156:10)
     async Test.run (node:internal/test_runner/test:1054:7)
     async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
   ...
@@ -46,7 +46,7 @@ not ok 1 - a joined bot answers "Hey bot, what is the capital of France?" out lo
   ---
   duration_ms: 4726.065119
   type: 'test'
-  location: '/home/nathan/rel23-gate-1017/gifos-mcp/test/unit/meetbot-reply.test.js:99:1'
+  location: '<repo>/test/unit/meetbot-reply.test.js:99:1'
   failureType: 'testCodeFailure'
   error: |-
     Smartest was asked once
@@ -59,7 +59,7 @@ not ok 1 - a joined bot answers "Hey bot, what is the capital of France?" out lo
   actual: 0
   operator: 'strictEqual'
   stack: |-
-    TestContext.<anonymous> (file:///home/nathan/rel23-gate-1017/gifos-mcp/test/unit/meetbot-reply.test.js:156:10)
+    TestContext.<anonymous> (file://<repo>/test/unit/meetbot-reply.test.js:156:10)
     async Test.run (node:internal/test_runner/test:1054:7)
     async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
   ...
@@ -83,7 +83,7 @@ not ok 1 - a joined bot answers "Hey bot, what is the capital of France?" out lo
   ---
   duration_ms: 4716.776846
   type: 'test'
-  location: '/home/nathan/rel23-gate-1017/gifos-mcp/test/unit/meetbot-reply.test.js:99:1'
+  location: '<repo>/test/unit/meetbot-reply.test.js:99:1'
   failureType: 'testCodeFailure'
   error: |-
     Smartest was asked once
@@ -96,7 +96,7 @@ not ok 1 - a joined bot answers "Hey bot, what is the capital of France?" out lo
   actual: 0
   operator: 'strictEqual'
   stack: |-
-    TestContext.<anonymous> (file:///home/nathan/rel23-gate-1017/gifos-mcp/test/unit/meetbot-reply.test.js:156:10)
+    TestContext.<anonymous> (file://<repo>/test/unit/meetbot-reply.test.js:156:10)
     async Test.run (node:internal/test_runner/test:1054:7)
     async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
   ...

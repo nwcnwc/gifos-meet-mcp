@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "gifos-meet": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "github:nwcnwc/gifos-meet-mcp#main"],
+      "env": {
+        "npm_config_ignore_scripts": "true",
+        "ONNXRUNTIME_NODE_INSTALL_CUDA": "skip",
+        "GIFOS_URL": "https://gifos.app"
+      }
+    }
+  }
+}

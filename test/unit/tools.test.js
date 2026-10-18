@@ -7,8 +7,8 @@ import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../../src/server.js';
-import { loadConfig } from '../../src/config.js';
-import { MeetingStore } from '../../src/meetings.js';
+import { loadConfig } from 'gifos-mcp-core/src/config.js';
+import { MeetingStore } from 'gifos-mcp-core/src/meetings.js';
 import { tmpHome } from './fixtures/tmp-home.js';
 
 class FakeBot {
@@ -43,7 +43,9 @@ const ADMIN = 'owner-key-77';
 
 async function mint(name = 'Demo meeting') {
   const r = json(await call('create_meeting', { name, admin_password: ADMIN }));
-  assert.deepEqual(Object.keys(r), ['link']);
+  assert.deepEqual(Object.keys(r).sort(), ['host_runs_room', 'invite', 'link', 'meeting_id']);
+  assert.equal(r.host_runs_room, true);
+  assert.equal(r.invite.join_url, r.link);
   assert.equal(JSON.stringify(r).includes(ADMIN), false);
   const listed = json(await call('list_meetings'));
   const row = listed.meetings.find((m) => m.link === r.link);
@@ -67,20 +69,20 @@ test('lists every tool with an input schema', async () => {
   const names = tools.map((t) => t.name).sort();
   assert.deepEqual(names, ['cancel_schedule', 'capacity_status', 'create_meeting', 'end_meeting', 'get_meeting_state', 'get_transcript',
     'import_schedule', 'join_meeting', 'leave_meeting', 'list_meetings', 'list_schedule', 'meeting_status', 'meetings_report',
-    'mute', 'raise_hand', 'say', 'schedule_meeting', 'send_chat', 'set_camera', 'set_mic', 'set_voice', 'share_content',
-    'snapshot', 'start_meeting', 'status', 'tail_events', 'tail_lines', 'tail_transcript', 'unmute', 'update_schedule']);
+    'mute', 'raise_hand', 'say', 'schedule_meeting', 'send_chat', 'set_camera', 'set_mic', 'share_content',
+    'snapshot', 'start_meeting', 'status', 'tail_events', 'tail_lines', 'tail_transcript', 'unmute', 'update_schedule', 'wait_lines']);
   for (const t of tools) {
     assert.equal(t.inputSchema.type, 'object', t.name);
     assert.ok(t.description && t.description.length > 20, t.name + ' has a description');
   }
   const create = tools.find((t) => t.name === 'create_meeting');
-  assert.deepEqual(create.inputSchema.required.slice().sort(), ['admin_password', 'name']);
+  assert.deepEqual(create.inputSchema.required.slice().sort(), ['name']);
 });
 
 test('create_meeting mints a link on GIFOS_URL and does not touch the browser', async () => {
   const r = await mint('Demo meeting');
   assert.match(r.meeting_id, /^m_[0-9a-f]{10}$/);
-  assert.match(r.link, /^http:\/\/127\.0\.0\.1:19510\/run\.html#v=[0-9a-z]{24}$/);
+  assert.match(r.link, /^http:\/\/127\.0\.0\.1:19510\/run\.html#v=[0-9a-z]{24}&av=[0-9a-f]{24}$/, 'a room the host runs: the link carries the host key verifier, never the password');
   assert.equal(bot.started, 0);
   assert.equal(bot.calls.length, 0);
   const again = await mint('Other');
@@ -93,7 +95,30 @@ test('create_meeting adds the relay to the link when GIFOS_RELAY is set', async 
   cfg = loadConfig({ GIFOS_MCP_HOME: home, GIFOS_URL: 'http://127.0.0.1:19510', GIFOS_RELAY: 'ws://127.0.0.1:19511' });
   await connect();
   const r = await mint();
-  assert.match(r.link, /#v=[0-9a-z]{24}&relay=ws%3A%2F%2F127\.0\.0\.1%3A19511$/);
+  assert.match(r.link, /#v=[0-9a-z]{24}&av=[0-9a-f]{24}&relay=ws%3A%2F%2F127\.0\.0\.1%3A19511$/);
+});
+
+test('create_meeting returns every invite detail, without joining and without sending anything', async () => {
+  const r = json(await call('create_meeting', {
+    name: 'Budget review', start: '2026-10-20T17:00', end: '2026-10-20T18:00', timezone: 'America/Los_Angeles',
+    description: 'Q4 numbers.', room_password: 'guest-ticket-9', host_name: 'Ada',
+  }));
+  assert.equal(r.host_runs_room, false, 'no host password: an open room');
+  assert.match(r.link, /#v=[0-9a-z]{24}$/);
+  const inv = r.invite;
+  assert.equal(inv.title, 'Budget review');
+  assert.equal(inv.start.local, '2026-10-20 17:00');
+  assert.equal(inv.end.local, '2026-10-20 18:00');
+  assert.equal(inv.timezone, 'America/Los_Angeles');
+  assert.equal(inv.admit.how, 'password');
+  assert.equal(r.link.includes('guest-ticket-9'), false, 'the room password is never in the link');
+  assert.match(inv.text, /guest-ticket-9/);
+  assert.equal(bot.calls.length, 0, 'nothing joined');
+  const listed = json(await call('list_meetings')).meetings.find((m) => m.meeting_id === r.meeting_id);
+  assert.equal(listed.start_time, '2026-10-21T00:00:00.000Z');
+  const th = json(await call('create_meeting', { name: 'Town hall', town_hall: true }));
+  assert.match(th.link, /&th=1$/);
+  assert.equal(th.invite.kind, 'town_hall');
 });
 
 test('schemas refuse bad input', async () => {
@@ -149,10 +174,10 @@ test('join_meeting accepts run.html and /meet links, refuses others', async () =
   assert.notEqual(a.meeting_id, b.meeting_id);
   const same = json(await call('join_meeting', { link: 'https://gifos.app/run.html#v=demoroom123' }));
   assert.equal(same.meeting_id, a.meeting_id, 'the same room is the same meeting');
-  assert.equal(same.note, 'Already in this meeting.');
+  assert.equal(same.note, 'Already in this room.');
   const bad = await call('join_meeting', { link: 'https://example.com/somewhere' });
   assert.equal(bad.isError, true);
-  assert.match(text(bad), /not a GifOS meeting link/);
+  assert.match(text(bad), /not a GifOS link/);
 });
 
 test('mute and unmute switch transcription', async () => {
@@ -205,11 +230,13 @@ test('list_meetings and status', async () => {
   assert.equal(s.stt_app, 'offline-stt-whisper');
   assert.deepEqual(s.live_meetings, [b.meeting_id]);
   assert.equal(s.bot.state, 'ready');
-  assert.equal(s.voice.conversation_voice, 'none');
-  assert.equal(s.voice.respond_to_command, true);
+  assert.equal(s.voice.respond_to_command, false);
+  assert.equal(s.voice.speak, false);
   assert.equal(s.voice.handed, false);
-  assert.equal(s.voice.model, null);
+  assert.equal('model' in s.voice, false);
+  assert.equal('conversation_voice' in s.voice, false);
   assert.match(s.voice.gap, /setVoice/);
+  assert.equal(s.server, 'gifos-meet-mcp');
   assert.equal(JSON.stringify(s).includes('GIFOS_LLM_KEY'), false);
 });
 
@@ -223,13 +250,7 @@ test('say reports the Meet Bot gap and does not post chat', async () => {
   assert.equal(quiet.isError, true);
   assert.match(text(quiet), /interject/);
   assert.equal(bot.calls.some((row) => row[0] === 'say'), false, 'say does not fall back to meeting chat');
-  const switches = json(await call('set_voice', { conversation_voice: 'grok', respond_to_command: false }));
-  assert.equal(switches.conversation_voice, 'grok');
-  assert.equal(switches.respond_to_command, false);
-  assert.equal(switches.handed, false);
-  const local = await call('set_voice', { conversation_voice: 'local' });
-  assert.equal(local.isError, true);
-  assert.match(text(local), /GIFOS_LLM_URL/);
+  assert.equal((await call('set_voice', { conversation_voice: 'grok' })).isError, true, 'there is no voice-model switch');
   const tail = json(await call('tail_transcript', { meeting_id: c.meeting_id }));
   assert.deepEqual(tail.lines, []);
   assert.equal(tail.next, 0);

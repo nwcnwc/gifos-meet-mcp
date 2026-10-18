@@ -1,0 +1,14 @@
+{
+  "name": "gifos-meet",
+  "version": "0.5.0",
+  "description": "GifOS meetings for Grok Bot, run on your own computer: create meetings with full invite details (no join, nothing sent), put a note-taking bot in them, follow the transcript live with low latency, and speak through the bot with Kokoro. No hosted endpoint, no account, no model key.",
+  "author": {
+    "name": "GifOS",
+    "url": "https://gifos.app"
+  },
+  "homepage": "https://github.com/nwcnwc/gifos-meet-mcp#readme",
+  "repository": "https://github.com/nwcnwc/gifos-meet-mcp",
+  "license": "MIT",
+  "keywords": ["gifos", "meeting", "video call", "transcript", "notes", "mcp", "self-hosted"],
+  "logo": "assets/logo.svg"
+}

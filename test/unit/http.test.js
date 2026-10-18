@@ -10,7 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { tmpHome } from './fixtures/tmp-home.js';
 
-const BIN = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'gifos-mcp.js');
+const BIN = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'gifos-meet-mcp.js');
 const PORT = 19521;
 
 test('streamable HTTP on 127.0.0.1 with a bearer token', async (t) => {
@@ -36,10 +36,10 @@ test('streamable HTTP on 127.0.0.1 with a bearer token', async (t) => {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name);
   assert.equal(tools.length, 30);
-  assert.ok(names.includes('say') && names.includes('tail_transcript') && names.includes('set_voice'));
+  assert.ok(names.includes('say') && names.includes('tail_transcript') && names.includes('wait_lines') && !names.includes('set_voice'));
   assert.ok(names.includes('schedule_meeting') && names.includes('capacity_status'));
   const r = JSON.parse((await client.callTool({ name: 'create_meeting', arguments: { name: 'Demo meeting', admin_password: 'owner-key-77' } })).content[0].text);
-  assert.match(r.link, /^https:\/\/gifos\.app\/run\.html#v=[0-9a-z]{24}$/);
+  assert.match(r.link, /^https:\/\/gifos\.app\/run\.html#v=[0-9a-z]{24}&av=[0-9a-f]{24}$/);
   assert.equal(JSON.stringify(r).includes('owner-key-77'), false);
   const l = JSON.parse((await client.callTool({ name: 'list_meetings', arguments: {} })).content[0].text);
   assert.equal(l.meetings[0].link, r.link, 'requests share one meeting store');

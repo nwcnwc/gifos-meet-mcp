@@ -1,4 +1,6 @@
-// A joined bot that hears a question must answer it out loud.
+// A joined bot answers nothing on its own: a question it hears is a line
+// for the assistant (wait_lines, to_bot), and the bot speaks exactly the
+// line the assistant hands to say.
 //
 // The real Meet Bot (test/fixtures/meeting-bot, gifos-apps-source a83ff5c)
 // runs in headless Chromium. The page is served from memory, and a stub
@@ -15,9 +17,9 @@ import { chromium } from 'playwright';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../../src/server.js';
-import { loadConfig } from '../../src/config.js';
-import { MeetingStore } from '../../src/meetings.js';
-import { MeetingBotDriver } from '../../src/driver.js';
+import { loadConfig } from 'gifos-mcp-core/src/config.js';
+import { MeetingStore } from 'gifos-mcp-core/src/meetings.js';
+import { MeetingBotDriver } from 'gifos-mcp-core/src/driver.js';
 
 const APP = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'meeting-bot');
 const read = (f) => fs.readFileSync(path.join(APP, f), 'utf8');
@@ -96,17 +98,16 @@ async function waitFor(fn, ms) {
   }
 }
 
-test('a joined bot answers "Hey bot, what is the capital of France?" out loud', async (t) => {
+test('a joined bot does not answer "Hey bot, what is the capital of France?" by itself; it speaks the line say gives it', async (t) => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gifos-mcp-reply-'));
-  // The live configuration: a Smartest model and Kokoro for speech.
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  // Old model settings in the environment are ignored.
   const cfg = loadConfig({
     GIFOS_MCP_HOME: home,
     GIFOS_URL: 'http://127.0.0.1:19510',
     GIFOS_LLM_URL: 'http://127.0.0.1:9/v1',
     GIFOS_LLM_MODEL: 'local-model',
   });
-  assert.equal(cfg.voice.conversationVoice, 'local');
-  assert.equal(cfg.voice.respondToCommand, true);
 
   const browser = await chromium.launch({ headless: true });
   t.after(() => browser.close());
@@ -124,7 +125,7 @@ test('a joined bot answers "Hey bot, what is the capital of France?" out loud', 
   driver.state = 'ready';
 
   const meetings = new MeetingStore(home);
-  const server = createServer({ cfg, meetings, bot: driver, botName: BOT.name });
+  const server = createServer({ cfg, meetings, bot: driver, botName: BOT.name, botPassword: BOT.password });
   const [a, b] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'unit', version: '1' });
   await Promise.all([server.connect(a), client.connect(b)]);
@@ -141,32 +142,30 @@ test('a joined bot answers "Hey bot, what is the capital of France?" out loud', 
 
   const appVoice = await page.evaluate(() => {
     const s = window.MeetingBot.status();
-    return { speak: s.speak, respond_to_command: s.respond_to_command, errors: s.errors };
+    return { speak: s.speak, respond_to_command: s.respond_to_command };
   });
-  console.log('app voice after join: ' + JSON.stringify(appVoice));
+  assert.deepEqual(appVoice, { speak: false, respond_to_command: false }, 'the real app took both switches off');
 
   await page.evaluate(({ sid, q }) => window.gifos.meet.hear(sid, 'Dana', q), { sid, q: QUESTION });
-  const spoken = await waitFor(() => page.evaluate(() => window.__host.speak.slice()), 5000);
-  const host = await page.evaluate(() => window.__host);
-  const lines = (await page.evaluate((id) => window.MeetingBot.transcript(id), sid)).lines;
-  console.log('tts: ' + JSON.stringify(host.tts));
-  console.log('meet.speak: ' + JSON.stringify(spoken));
-  console.log('transcript:\n' + lines.map((l) => '  ' + l.by + ': ' + l.text).join('\n'));
+  await new Promise((r) => setTimeout(r, 1500));
+  let host = await page.evaluate(() => window.__host);
+  assert.equal(host.chat.length, 0, 'no model was asked');
+  assert.deepEqual(host.speak, [], 'the bot said nothing on its own');
 
-  assert.equal(host.chat.length, 1, 'Smartest was asked once');
-  assert.equal(host.chat[0].model, 'smartest');
-  assert.deepEqual(host.tts, ['The capital of France is Paris.'], 'the reply went through Text to speech');
-  assert.equal(spoken.length, 1, 'the bot played one reply into the meeting');
-  assert.equal(spoken[0].id, sid);
-  assert.equal(spoken[0].mime, 'audio/wav');
-  assert.ok(spoken[0].n > 0);
-  assert.deepEqual(lines.map((l) => l.by + ': ' + l.text), [
-    'Dana: ' + QUESTION,
-    BOT.name + ': The capital of France is Paris.',
-  ]);
+  // The assistant answers: say hands Meet Bot the words; Text to speech and
+  // the meeting get exactly that line.
+  const said = await json('say', { meeting_id: joined.meeting_id, text: 'The capital of France is Paris.' });
+  assert.equal(said.spoken, true);
+  host = await waitFor(async () => { const h = await page.evaluate(() => window.__host); return h.speak.length ? h : null; }, 5000);
+  assert.ok(host, 'the line was played into the meeting');
+  assert.deepEqual(host.tts, ['The capital of France is Paris.']);
+  assert.equal(host.speak.length, 1);
+  assert.equal(host.speak[0].id, sid);
+  assert.equal(host.speak[0].mime, 'audio/wav');
+  assert.equal(host.chat.length, 0, 'still no model');
 
   const status = await json('status');
-  console.log('status.voice: ' + JSON.stringify(status.voice));
   assert.equal(status.voice.handed, true);
   assert.equal(status.voice.gap, null);
+  assert.equal(status.voice.speak, false);
 });

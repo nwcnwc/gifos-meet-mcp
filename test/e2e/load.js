@@ -5,7 +5,7 @@
 //   GIFOS_APP_DIR=../gifos-app E2E_ROOMS=1,4,8 npm run test:e2e:load
 //
 // Serves the gifos-app checkout on 127.0.0.1:19510 with the synthetic speech
-// apps, spawns bin/gifos-mcp.js with one worker (the bot in-process, as in
+// apps, spawns bin/gifos-meet-mcp.js with one worker (the bot in-process, as in
 // stage A), transcription on and conversation voice off.
 //
 // E2E_STT=whisper swaps the synthetic speech-to-text for Offline Captions
@@ -113,7 +113,7 @@ async function main() {
 
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [path.join(REPO, 'bin', 'gifos-mcp.js')],
+    args: [path.join(REPO, 'bin', 'gifos-meet-mcp.js')],
     env: {
       ...process.env,
       GIFOS_URL: BASE,
@@ -126,10 +126,6 @@ async function main() {
       GIFOS_STT_APP: STT === 'whisper' ? 'offline-stt-whisper' : 'stt-synthetic',
       GIFOS_TTS_APP: 'tts-synthetic',
       GIFOS_TTS_ENGINE: 'kokoro',
-      GIFOS_LLM_APP: 'llm-synthetic',
-      GIFOS_CONVERSATION_VOICE: 'none',
-      GIFOS_LLM_KEY: '',
-      GIFOS_LLM_URL: '',
       GIFOS_MCP_SHOTS: PROOF,
     },
     stderr: 'pipe',

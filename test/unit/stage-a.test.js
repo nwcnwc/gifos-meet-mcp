@@ -6,8 +6,8 @@ import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../../src/server.js';
-import { loadConfig } from '../../src/config.js';
-import { MeetingStore } from '../../src/meetings.js';
+import { loadConfig } from 'gifos-mcp-core/src/config.js';
+import { MeetingStore } from 'gifos-mcp-core/src/meetings.js';
 import { tmpHome } from './fixtures/tmp-home.js';
 
 const ADMIN = 'owner-key-77';
@@ -52,7 +52,7 @@ beforeEach(async () => {
 
 async function mint(name = 'Notes') {
   const created = await json('create_meeting', { name, admin_password: ADMIN });
-  assert.deepEqual(Object.keys(created), ['link']);
+  assert.deepEqual(Object.keys(created).sort(), ['host_runs_room', 'invite', 'link', 'meeting_id']);
   const listed = await json('list_meetings');
   return { link: created.link, meeting_id: listed.meetings.find((m) => m.link === created.link).meeting_id };
 }

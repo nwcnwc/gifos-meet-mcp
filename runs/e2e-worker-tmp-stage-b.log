@@ -50,6 +50,6 @@
 exit 0
 --- TMPDIR left:
 total 0
-drwxr-xr-x   3 nathan nathan    60 Oct 16 23:09 .
+drwxr-xr-x   3 user  user      60 Oct 16 23:09 .
 drwxrwxrwt 264 root   root   26700 Oct 16 23:09 ..
-drwxr-xr-x   3 nathan nathan    60 Oct 16 23:07 node-compile-cache
+drwxr-xr-x   3 user  user      60 Oct 16 23:07 node-compile-cache

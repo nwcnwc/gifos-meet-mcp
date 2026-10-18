@@ -4,7 +4,7 @@
 //
 // Serves the gifos-app checkout (it must list apps/meeting-bot) on
 // 127.0.0.1:19510 with the synthetic speech apps from synth.js, and spawns
-// bin/gifos-mcp.js with GIFOS_WORKERS=2 and one room per worker. Then:
+// bin/gifos-meet-mcp.js with GIFOS_WORKERS=2 and one room per worker. Then:
 // two meetings start at once and land on different workers -> status shows
 // both workers ready, each with its own bot name -> RSS and CPU per worker
 // (its whole Chromium tree) -> one person joins each meeting and sees only
@@ -79,7 +79,7 @@ async function main() {
 
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [path.join(REPO, 'bin', 'gifos-mcp.js')],
+    args: [path.join(REPO, 'bin', 'gifos-meet-mcp.js')],
     env: {
       ...process.env,
       GIFOS_URL: BASE,
@@ -93,10 +93,6 @@ async function main() {
       GIFOS_STT_APP: 'stt-synthetic',
       GIFOS_TTS_APP: 'tts-synthetic',
       GIFOS_TTS_ENGINE: 'kokoro',
-      GIFOS_LLM_APP: 'llm-synthetic',
-      GIFOS_CONVERSATION_VOICE: 'none',
-      GIFOS_LLM_KEY: '',
-      GIFOS_LLM_URL: '',
       GIFOS_MCP_SHOTS: PROOF,
     },
     stderr: 'pipe',
