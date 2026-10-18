@@ -71,7 +71,7 @@ export function registerMeetTools(server, ctx) {
 
   server.registerTool('raise_hand', {
     title: 'Raise or lower the bot hand',
-    description: 'Asks Meet Bot to raise its hand when on is true, and to lower it when on is false. Contract version 1 has no hand control, and then this reports the gap.',
+    description: 'Asks Meeting Bot to raise its hand when on is true, and to lower it when on is false. Contract version 1 has no hand control, and then this reports the gap.',
     inputSchema: {
       meeting_id: meetingId,
       on: z.boolean().describe('true to raise, false to lower.'),
@@ -83,8 +83,8 @@ export function registerMeetTools(server, ctx) {
   }));
 
   server.registerTool('set_mic', {
-    title: 'Turn the Meet Bot microphone on or off',
-    description: 'Asks Meet Bot to unmute its microphone when on is true. Contract version 1 gives the bot no microphone, and then this reports the gap.',
+    title: 'Turn the Meeting Bot microphone on or off',
+    description: 'Turns Meeting Bot\'s microphone on or off. mute and unmute only stop or start captions; they do not touch this microphone. Contract version 1 gives the bot no microphone, and then this reports the gap.',
     inputSchema: {
       meeting_id: meetingId,
       on: z.boolean().describe('true to unmute, false to mute.'),
@@ -97,7 +97,7 @@ export function registerMeetTools(server, ctx) {
 
   server.registerTool('set_camera', {
     title: 'Turn the Meet Bot camera on or off',
-    description: 'Asks Meet Bot to show its camera when on is true, and to turn it off when on is false. Contract version 1 has no camera, and then this reports the gap.',
+    description: 'Asks Meeting Bot to show its camera when on is true, and to turn it off when on is false. Contract version 1 has no camera, and then this reports the gap.',
     inputSchema: {
       meeting_id: meetingId,
       on: z.boolean().describe('true to show the camera, false to turn it off.'),
