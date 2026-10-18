@@ -4,6 +4,7 @@
 // clip for Whisper.
 import fs from 'node:fs';
 import { chromium } from 'playwright';
+import { launchInstalled } from 'gifos-mcp-core';
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -117,7 +118,7 @@ export const MEDIA_ARGS = ['--use-fake-ui-for-media-stream', '--use-fake-device-
 export async function peopleBrowser(ws) {
   return ws
     ? chromium.connect(ws, { headers: { 'x-playwright-launch-options': JSON.stringify({ headless: true, args: MEDIA_ARGS }) }, timeout: 60000 })
-    : chromium.launch({ headless: true, args: MEDIA_ARGS });
+    : launchInstalled((o) => chromium.launch(o), { headless: true, args: MEDIA_ARGS }, {}).then((r) => r.browser);
 }
 
 // One person: its own context (name, mic) in the given browser. speech: the

@@ -43,10 +43,17 @@
   "homepage": "https://github.com/nwcnwc/gifos-meet-mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
-    "gifos-mcp-core": "git+https://github.com/nwcnwc/gifos-mcp-core.git#93340956bdecbb2127415d02fc759fe5363766bd",
+    "gifos-mcp-core": "git+https://github.com/nwcnwc/gifos-mcp-core.git#b4c41b077c11f79d84f05cd0ea4adb8455bc04cd",
     "zod": "3.25.76"
   },
   "devDependencies": {
     "playwright": "1.61.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "GifOS (https://gifos.app)",
+  "bugs": {
+    "url": "https://github.com/nwcnwc/gifos-meet-mcp/issues"
   }
 }

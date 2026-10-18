@@ -41,7 +41,7 @@ Grok Bot ──MCP (stdio)──▶ gifos-meet-mcp ──▶ headless Chromium (
 
 ## Install
 
-You need **Node.js 20 or newer**.
+You need **Node.js 20 or newer** and **Google Chrome or Microsoft Edge** (see *The browser* below).
 
 ```sh
 npx -y github:nwcnwc/gifos-meet-mcp
@@ -52,7 +52,6 @@ or from a clone:
 ```sh
 git clone https://github.com/nwcnwc/gifos-meet-mcp.git && cd gifos-meet-mcp
 npm install --ignore-scripts
-npx playwright install chromium
 node bin/gifos-meet-mcp.js            # stdio
 node bin/gifos-meet-mcp.js --http     # or streamable HTTP on http://127.0.0.1:19520/mcp
 ```
@@ -62,6 +61,10 @@ dependencies of kokoro-js do: `onnxruntime-node` would download CUDA libraries f
 `sharp` checks for a system libvips, `protobufjs` checks its version. The CPU build of ONNX Runtime and sharp's
 prebuilt binary ship inside the packages, so `--ignore-scripts` loses nothing. The plugin's `.mcp.json` sets
 `npm_config_ignore_scripts=true` and `ONNXRUNTIME_NODE_INSTALL_CUDA=skip`.
+
+**The browser.** The server drives the browser already on your computer: `GIFOS_CHROME` if set, else Google
+Chrome, else Microsoft Edge, else a Chromium that `npx playwright install chromium` installed earlier. It never
+downloads or installs a browser. With none of these it stops and says what to install.
 
 ## Grok Bot setup
 
@@ -96,7 +99,6 @@ join does not wait. **It must be running at meeting time** for a scheduled join:
 | Meeting Bot and Offline Captions apps | the GifOS store on `GIFOS_URL` (signed) | first start | small |
 | Whisper model | through the Offline Captions app | first transcription | about 77 MB |
 | Kokoro weights | `https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX` at revision `1939ad2a8e416c0acfeecc08a694d14ef25f2231`, or the mirror in `GIFOS_KOKORO_URL` | first start, kept in `GIFOS_MCP_HOME/kokoro` | about 92 MB; each file is checked against its pinned SHA-256 |
-| Chromium for Playwright | Playwright's download servers (`npx playwright install chromium`) | first start if missing, unless `GIFOS_MCP_NO_INSTALL=1` or `GIFOS_CHROME` is set | about 150 MB |
 | npm packages | the npm registry and GitHub (gifos-mcp-core) | install | — |
 
 **Credentials.** The only secret this server holds is the bot's own name and password, which open Meeting
@@ -116,11 +118,10 @@ sends email or calendar invites.
 | `GIFOS_STT_APP` | `offline-stt-whisper` | The store app for speech to text. `none` turns transcription off. |
 | `GIFOS_MCP_HOME` | `~/.gifos-mcp` | Browser profile, bot credential, `meetings.json`, `schedule.json`, transcripts, events. |
 | `GIFOS_HEADLESS` | `1` | `0` shows the browser windows. |
-| `GIFOS_CHROME` | Playwright's Chromium | Another Chromium or Chrome binary. |
+| `GIFOS_CHROME` | Chrome, then Edge | A Chrome or Chromium binary to use instead. |
 | `GIFOS_TIMEOUT_MS` | `120000` | How long to wait for GifOS steps such as joining. |
 | `GIFOS_MCP_HTTP_TOKEN` | none | Bearer token for `--http`. |
 | `GIFOS_MCP_LAZY` | `0` | `1` starts the browser on the first tool call. |
-| `GIFOS_MCP_NO_INSTALL` | `0` | `1` never downloads Chromium; a missing browser is an error that says how to install it. |
 | `GIFOS_MCP_DEBUG` | `0` | `1` logs the GifOS console to stderr and adds caption state to `status`. |
 | `GIFOS_MCP_SHOTS` | none | A folder for screenshots of the bot's screens. |
 | `GIFOS_TRANSCRIPT_POLL_MS` | `300` | How often captions are copied from Meet Bot into the lines. |
@@ -224,7 +225,7 @@ The user says: *"Set up a meeting with Alice and Bob at 5 PM, take notes, and se
 | `Meeting Bot did not start: A bot with this name and password is already running…` | Another server (or a Meeting Bot window) uses the same name and password. Give this one its own `GIFOS_MCP_HOME` or `GIFOS_BOT_NAME`/`GIFOS_BOT_PASSWORD`. |
 | `get_transcript` stays at `(no transcript lines yet)` | Somebody has to speak with their mic on. The first transcription downloads the Whisper model (about 77 MB). |
 | `Kokoro: … does not match its pinned SHA-256` | A download was cut or a mirror served other bytes. The file was removed; start again. |
-| `Chromium for Playwright is missing` | Run `npx playwright install chromium` (on Linux maybe also `npx playwright install-deps chromium`). |
+| `No Chrome or Edge on this computer` | Install Google Chrome, or run `npx playwright install chromium` once, or set `GIFOS_CHROME`. The server never downloads a browser. |
 | A scheduled join did not happen | The server was not running, or the machine was asleep. |
 | Anything else | `GIFOS_HEADLESS=0` shows the browser; `GIFOS_MCP_SHOTS=/tmp/shots` saves screenshots. |
 
@@ -235,7 +236,6 @@ The user says: *"Set up a meeting with Alice and Bob at 5 PM, take notes, and se
 ```sh
 git clone https://github.com/nwcnwc/gifos-meet-mcp.git && cd gifos-meet-mcp
 npm install --ignore-scripts
-npx playwright install chromium
 npm test
 ```
 

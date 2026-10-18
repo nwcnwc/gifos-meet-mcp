@@ -15,6 +15,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { launchInstalled } from 'gifos-mcp-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { packApp, startSite } from './site.js';
@@ -158,11 +159,11 @@ async function main() {
     check('status: bot ready, one live meeting, STT app installed', st.bot.state === 'ready' && st.live_meetings.length === 1 && st.bot.stt_ready, JSON.stringify(st));
 
     // ---- a person joins and talks ----
-    human = await chromium.launch({
+    human = await launchInstalled((o) => chromium.launch(o), {
       headless: true,
       args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--use-file-for-fake-audio-capture=' + wav,
         '--autoplay-policy=no-user-gesture-required'],
-    });
+    }, {}).then((r) => r.browser);
     const hctx = await human.newContext({ viewport: { width: 1280, height: 800 }, permissions: ['camera', 'microphone'] });
     await hctx.addInitScript({ content: 'try{localStorage.setItem("gifos_name","Alice");localStorage.setItem("gifos_meet_bar","0");sessionStorage.setItem("gifos_appeared","1");' +
       (relay ? 'localStorage.setItem("gifos_relay",' + JSON.stringify(relay) + ');' : '') + '}catch(e){}' });

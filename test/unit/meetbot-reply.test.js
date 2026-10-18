@@ -14,6 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { launchInstalled } from 'gifos-mcp-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../../src/server.js';
@@ -109,7 +110,7 @@ test('a joined bot does not answer "Hey bot, what is the capital of France?" by 
     GIFOS_LLM_MODEL: 'local-model',
   });
 
-  const browser = await chromium.launch({ headless: true });
+  const { browser } = await launchInstalled((o) => chromium.launch(o), { headless: true }, {});
   t.after(() => browser.close());
   const page = await browser.newPage();
   page.on('pageerror', (e) => console.log('[app] ' + e.message));

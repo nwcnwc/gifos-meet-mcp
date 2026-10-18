@@ -1,0 +1,53 @@
+   0.0s site http://127.0.0.1:19510 from the gifos-app checkout; STT synthetic; speech noise.wav
+   0.1s PASS — local GifOS store lists meeting-bot  (packed from MEETING_BOT_SRC, version 0.9.23, 43735 bytes, sha256 6a1a3aeea0f3)
+   0.1s relay ws://127.0.0.1:19513
+  [gifos-mcp] 2026-10-18T04:39:23.463Z gifos-meet-mcp 0.5.0 · GifOS http://127.0.0.1:19510 · bot "notes-3cf8df" (generated) · data /tmp/gifos-mcp-e2e-XzAHuN/mcp-home
+  [gifos-mcp] 2026-10-18T04:39:23.463Z ready on stdio
+  [gifos-mcp] 2026-10-18T04:39:23.464Z starting the bot browser for http://127.0.0.1:19510
+   0.6s PASS — MCP server lists its tools over stdio  (mute, unmute, share_content, get_transcript, end_meeting, list_meetings, status, tail_transcript, say, wait_lines, send_chat, get_meeting_state, snapshot, leave_meeting, schedule_meeting, list_schedule, update_schedule, cancel_schedule, import_schedule, meeting_status, tail_lines, meetings_report, t)
+   0.7s PASS — create_meeting returns a link on the local GifOS, a room the host runs, and the invite details  (http://127.0.0.1:19510/run.html#v=f5mj6jnn0mn8dlw8dsazhu40&av=ad58ba5adf965d8a7ebf7efa&relay=ws%3A%2F%2F127.0.0.1%3A19513)
+  [gifos-mcp] 2026-10-18T04:39:23.687Z browser: Google Chrome
+  [gifos-mcp] 2026-10-18T04:39:25.629Z installing stt-synthetic from the GifOS store
+  [gifos-mcp] 2026-10-18T04:39:25.915Z installing tts-synthetic from the GifOS store
+  [gifos-mcp] 2026-10-18T04:39:26.247Z installing meeting-bot from the GifOS store
+  [gifos-mcp] 2026-10-18T04:39:32.619Z ready: Meeting Bot "notes-3cf8df" is running
+  10.2s PASS — start_meeting: the bot installs from the store, joins and transcribes  ({
+  "meeting_id": "m_4a0a0a79be",
+  "topic": "Demo meeting",
+  "start_time": null,
+  "link": "http://127.0.0.1:19510/run.html#v=f5mj6jnn0mn8dlw8dsazhu40&av=ad58ba5adf965d8a7ebf7efa&relay=ws%3A%2F%2F127.0.0.1%3A19513",
+  "state": "live",
+  "transcribing": true,
+  "muted": false,
+  "thinking": false,
+)
+  10.2s PASS — status: bot ready, one live meeting, STT app installed  ({"server":"gifos-meet-mcp","version":"0.5.0","gifos_url":"http://127.0.0.1:19510","stt_app":"stt-synthetic","live_meetings":["m_4a0a0a79be"],"voice":{"respond_to_command":false,"speak":false,"handed":true,"gap":null,"tts":{"engine":"kokoro","voice":"af_heart"}},"bot":{"state":"ready","bot_name":"not)
+  11.1s PASS — Alice turns her microphone on
+  11.1s PASS — Alice sees the 🤖 bot badge  (N notes-3cf8df bot)
+  16.2s transcript so far:
+    | Alice: Can you hear this synthetic speech?
+  16.2s PASS — get_transcript returns Alice's words  (expect /synthetic speech/i)
+  16.2s PASS — say speaks through the assigned text-to-speech provider  ({
+  "meeting_id": "m_4a0a0a79be",
+  "spoken": true
+})
+  21.2s PASS — status: Meet Bot holds both switches off and spoke no turn of its own  ({"voice":{"respond_to_command":false,"speak":false,"handed":true,"gap":null,"tts":{"engine":"kokoro","voice":"af_heart"}},"commands":[{"op":"join","detail":"mt_3"},{"op":"set_voice","detail":"quiet"},{"op":"interject","detail":"mic"}]})
+  21.2s PASS — wait_lines returns Alice's lines  ([{"seq":1,"ts":"2026-10-18T04:39:37.873Z","meeting_id":"m_4a0a0a79be","kind":"speech","speaker":"Alice","text":"Can you hear this synthetic speech?","to_bot":true},{"seq":2,"ts":"2026-10-18T04:39:39.137Z","meeting_id":"m_4a0a0a79be","kind":"spoken","speaker":"notes-3cf8df","text":"Hello from the bot)
+  21.2s PASS — share_content answers  ({
+  "meeting_id": "m_4a0a0a79be",
+  "shared": true,
+  "chars": 46
+})
+  21.3s PASS — Alice sees the shared text in chat
+  21.4s PASS — mute stops transcribing
+  21.4s PASS — unmute turns transcribing back on
+  21.4s PASS — list_meetings shows the live meeting
+  21.4s PASS — end_meeting: the bot leaves and keeps the transcript  ({"meeting_id":"m_4a0a0a79be","topic":"Demo meeting","start_time":null,"link":"http://127.0.0.1:19510/run.html#v=f5mj6jnn0mn8dlw8dsazhu40&av=ad58ba5adf965d8a7ebf7efa&relay=ws%3A%2F%2F127.0.0.1%3A19513","state":"ended","transcribing":false,"muted":false,"thinking":false,"created_at":"2026-10-18T04:39:)
+  21.4s PASS — Alice no longer sees the bot
+  21.5s PASS — get_transcript still works after end_meeting  (Alice: Can you hear this synthetic speech?
+notes-3cf8df: Hello from the bot
+Alice: Can you hear this synthetic speech?
+Alice: Can you hear this synthetic speech?)
+  21.7s ALL PASS
+  21.7s screenshots in ~/mcp23b/out/meet-proof
+rc=0
