@@ -237,6 +237,9 @@ The user says: *"Set up a meeting with Alice and Bob at 5 PM, take notes, and se
 | A scheduled join did not happen | The server was not running, or the machine was asleep. |
 | Anything else | `GIFOS_HEADLESS=0` shows the browser; `GIFOS_MCP_SHOTS=/tmp/shots` saves screenshots. |
 
+
+The e2e runner (`test/e2e/run.js`) serves a local site unless `GIFOS_URL` or `E2E_GIFOS_URL` is already set; then it uses that site and does not start its own.
+
 ## Testing instructions for marketplace reviewers
 
 **1. Unit tests (no network, no browser except one local page, about a minute).**

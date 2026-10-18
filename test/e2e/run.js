@@ -34,7 +34,10 @@ const STT = process.env.E2E_STT || 'whisper';            // whisper | synthetic
 const SPEECH = process.env.E2E_SPEECH_WAV ? path.resolve(process.env.E2E_SPEECH_WAV) : ''; // Chromium needs an absolute path
 const EXPECT = new RegExp(process.env.E2E_EXPECT || (STT === 'synthetic' ? 'synthetic speech' : '[A-Za-z]{3,}'), 'i');
 const PROOF = path.resolve(process.env.E2E_PROOF_DIR || path.join(REPO, '.e2e', 'proof'));
-const BASE = 'http://127.0.0.1:' + SITE_PORT;
+// An already-set GIFOS_URL or E2E_GIFOS_URL is the site under test (the same
+// setting the gate and a person use). Otherwise this file serves GIFOS_APP_DIR.
+const GIVEN_URL = String(process.env.E2E_GIFOS_URL || process.env.GIFOS_URL || '').replace(/\/$/, '');
+const BASE = GIVEN_URL || ('http://127.0.0.1:' + SITE_PORT);
 const TRANSCRIPT_WAIT_MS = Number(process.env.E2E_TRANSCRIPT_WAIT_MS || 300000);
 const CALL = { timeout: 600000 };
 const BOT_LOOK_NAME = 'Notes for Ada';
@@ -87,9 +90,9 @@ async function waitPort(port, ms) {
 }
 
 async function main() {
-  need(SITE_DIR && fs.existsSync(path.join(SITE_DIR, 'run.html')), 'set GIFOS_APP_DIR to a gifos-app checkout (release/0.9.23 or later)');
-  const listed = fs.existsSync(path.join(SITE_DIR, 'apps', 'meeting-bot', 'app.json'));
-  need(listed || (BOT_SRC && fs.existsSync(path.join(BOT_SRC, 'manifest.json'))),
+  if (!GIVEN_URL) need(SITE_DIR && fs.existsSync(path.join(SITE_DIR, 'run.html')), 'set GIFOS_APP_DIR to a gifos-app checkout (release/0.9.23 or later), or set GIFOS_URL / E2E_GIFOS_URL to a site that already serves one');
+  const listed = !!(SITE_DIR && fs.existsSync(path.join(SITE_DIR, 'apps', 'meeting-bot', 'app.json')));
+  if (!GIVEN_URL) need(listed || (BOT_SRC && fs.existsSync(path.join(BOT_SRC, 'manifest.json'))),
     'this GifOS store has no meeting-bot listing: set MEETING_BOT_SRC to the meeting-bot source folder (gifos-apps-source)');
   need(STT === 'whisper' || STT === 'synthetic', 'E2E_STT is whisper or synthetic');
   need(STT !== 'whisper' || (SPEECH && fs.existsSync(SPEECH)), 'whisper mode needs E2E_SPEECH_WAV, a WAV file of someone speaking');
@@ -99,15 +102,15 @@ async function main() {
   if (!SPEECH) noiseWav(wav);
   say('site ' + BASE + ' from the gifos-app checkout; STT ' + STT + '; speech ' + path.basename(wav));
 
-  // ---- local GifOS with Meeting Bot in its store ----
-  const logo = fs.readFileSync(path.join(REPO, 'assets', 'logo-512.png'));
+  // ---- local GifOS with Meeting Bot in its store (skipped when GIFOS_URL is set) ----
+  const logo = GIVEN_URL ? null : fs.readFileSync(path.join(REPO, 'assets', 'logo-512.png'));
   // Meeting Bot from MEETING_BOT_SRC when given, else the site's own store listing.
   const extra = [];
-  if (BOT_SRC) {
+  if (!GIVEN_URL && BOT_SRC) {
     const bot = await packApp(BOT_SRC, SITE_DIR, ['manifest.json', 'index.html', 'app.js', 'protocol.js', 'voice.js', 'help.md', 'CONTROL.md', 'listing.json']);
     extra.push({ slug: 'meeting-bot', ...bot, cover: logo });
   }
-  if (STT === 'synthetic') {
+  if (!GIVEN_URL && STT === 'synthetic') {
     const apps = [['stt-synthetic', SYNTH_STT], ['tts-synthetic', SYNTH_TTS], ['llm-synthetic', SYNTH_LLM]];
     for (const [slug, files] of apps) {
       const dir = path.join(work, slug);
@@ -116,7 +119,9 @@ async function main() {
       extra.push({ slug, ...(await packApp(dir, SITE_DIR, ['manifest.json', 'index.html'])), cover: logo });
     }
   }
-  const site = await startSite({ siteDir: SITE_DIR, port: SITE_PORT, extraApps: extra });
+  let site = null;
+  if (!GIVEN_URL) site = await startSite({ siteDir: SITE_DIR, port: SITE_PORT, extraApps: extra });
+  else say('using GIFOS_URL ' + BASE + ' (no local site)');
   const listing = JSON.parse(await (await fetch(BASE + '/apps/meeting-bot/app.json')).text());
   check('local GifOS store lists meeting-bot', listing.appId === 'meeting-bot',
     (BOT_SRC ? 'packed from MEETING_BOT_SRC' : 'the site\'s own listing') + ', version ' + listing.version + ', ' + listing.bytes + ' bytes, sha256 ' + String(listing.sha256).slice(0, 12));
