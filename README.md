@@ -47,6 +47,8 @@ You need **Node.js 20 or newer** and **Google Chrome or Microsoft Edge** (see *T
 npx -y github:nwcnwc/gifos-meet-mcp
 ```
 
+`npx` with a `github:` address downloads the package through git. Install git first.
+
 or from a clone:
 
 ```sh
@@ -77,12 +79,14 @@ By hand, add a local (stdio) MCP server:
     "gifos-meet": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "github:nwcnwc/gifos-meet-mcp"],
+      "args": ["-y", "git+https://github.com/nwcnwc/gifos-meet-mcp.git#05f1226e0ed4325a797654fa71e84961e719e0e2"],
       "env": { "npm_config_ignore_scripts": "true", "ONNXRUNTIME_NODE_INSTALL_CUDA": "skip", "GIFOS_URL": "https://gifos.app" }
     }
   }
 }
 ```
+
+That pin is the same commit as `.mcp.json`. `npx github:` needs git.
 
 The server warms up as soon as Grok Bot starts it (about 10 seconds, plus first-run downloads), so the first
 join does not wait. **It must be running at meeting time** for a scheduled join: run it on an always-on machine.
@@ -262,11 +266,13 @@ and *"End the meeting."*
 **3. Full end-to-end test against a local GifOS** (what the maintainers run).
 
 ```sh
-git clone https://github.com/nwcnwc/gifos-app.git ../gifos-app
+git clone --branch release/0.9.23 --single-branch https://github.com/nwcnwc/gifos-app.git ../gifos-app
 git clone https://github.com/nwcnwc/gifos-apps-source.git ../gifos-apps-source
 GIFOS_APP_DIR=../gifos-app MEETING_BOT_SRC=../gifos-apps-source/meeting-bot \
-E2E_RELAY=wss://your-gifos-0.9.23b-relay E2E_STT=synthetic npm run test:e2e
+E2E_STT=synthetic npm run test:e2e
 ```
+
+Leave `E2E_RELAY` unset. The test uses the GifOS site's own relay, and a client on this computer can use the live relay.
 
 It serves the GifOS checkout on `127.0.0.1:19510`, spawns this server over stdio, creates a meeting, lets the
 bot join, has a second headless browser ("Alice") speak, and checks the transcript, `wait_lines`, `say`,
