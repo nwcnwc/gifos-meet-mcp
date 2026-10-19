@@ -3,8 +3,8 @@
 `app.js`, `voice.js`, `protocol.js`, and `index.html` are copied unchanged from
 [gifos-apps-source](https://github.com/nwcnwc/gifos-apps-source) `meeting-bot/`
 at commit `a83ff5c` ("Meeting Bot: speak with Smartest and open a watch-only
-tile"), MeetingBot contract version 2. Licensed under that repository's
-Apache-2.0 license. `test/unit/meetbot-reply.test.js` runs them in headless
+tile"), MeetingBot contract version 2. Licensed under the license recorded for
+`meeting-bot/` in that repository. `test/unit/meetbot-reply.test.js` runs them in headless
 Chromium with a stub `gifos` host.
 
 sha256:

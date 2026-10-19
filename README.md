@@ -280,4 +280,4 @@ chat, mute, end and the quiet bot. `E2E_STT=whisper` with `E2E_SPEECH_WAV` uses 
 
 ## License
 
-MIT. GifOS, Meeting Bot and Kokoro are separate projects with their own licenses.
+Copyright (c) 2026 Crowd Concepts, Inc. All rights reserved. See [LICENSE](LICENSE). GifOS, Meeting Bot and Kokoro are separate projects with their own licenses.

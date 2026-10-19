@@ -8,7 +8,7 @@
   },
   "homepage": "https://github.com/nwcnwc/gifos-meet-mcp#readme",
   "repository": "https://github.com/nwcnwc/gifos-meet-mcp",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "keywords": ["gifos", "meeting", "video call", "transcript", "notes", "mcp", "self-hosted"],
   "logo": "assets/logo.svg"
 }

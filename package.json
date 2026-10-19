@@ -2,7 +2,7 @@
   "name": "gifos-meet-mcp",
   "version": "0.5.0",
   "description": "GifOS Meet for Grok Bot: a self-run MCP server that makes GifOS meetings with full invite details, puts a note-taking bot in them, and follows the transcript live. No hosted endpoint, no model key.",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "type": "module",
   "bin": {
     "gifos-meet-mcp": "bin/gifos-meet-mcp.js"
