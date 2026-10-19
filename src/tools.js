@@ -4,12 +4,12 @@
 // shared tools from gifos-mcp-core.
 import { z } from 'zod';
 import {
-  meetingId, newRoom, hostKey, meetingLink, plainLink, meetingInvite, publicView, scrub,
+  meetingId, newRoom, hostKey, meetingLink, plainLink, meetingInvite, publicView, scrub, instructionsField,
   CAMERA_GAP, HAND_GAP, MIC_GAP,
 } from 'gifos-mcp-core';
 
 export function registerMeetTools(server, ctx) {
-  const { cfg, meetings, ok, fail, guarded, need, needLive, enterByHand, joinByLink, secrets, control, bot } = ctx;
+  const { cfg, meetings, ok, fail, guarded, need, needLive, enterByHand, joinByLink, instructionsFor, secrets, control, bot } = ctx;
 
   server.registerTool('create_meeting', {
     title: 'Create a GifOS meeting (link and invite details, no join)',
@@ -58,15 +58,19 @@ export function registerMeetTools(server, ctx) {
 
   server.registerTool('join_meeting', {
     title: 'Join an existing GifOS meeting by link',
-    description: 'The Meeting Bot joins a GifOS meeting now and starts transcribing. A join at a later time is schedule_meeting, not this tool. The room password is kept on the schedule when one is passed, and is never returned.',
+    description: 'The Meeting Bot joins a GifOS meeting now and starts transcribing. A join at a later time is schedule_meeting, not this tool. The room password is kept on the schedule when one is passed, and is never returned. instructions, when given, are the owner\'s goal for this meeting, handed back to you by meeting_status; without them the bot only transcribes.',
     inputSchema: {
       link: z.string().url().max(2048).describe('The GifOS meeting link.'),
       password: z.string().max(200).optional().describe('The room password guests type, if the meeting has one.'),
       topic: z.string().max(200).optional().describe('A name for this meeting in the local list.'),
+      instructions: instructionsField,
     },
-  }, guarded(async ({ link, password, topic }) => {
-    const { meeting, note } = await joinByLink(link, password, topic);
-    return ok(note ? { ...publicView(meeting), note } : publicView(meeting));
+  }, guarded(async ({ link, password, topic, instructions }) => {
+    const { meeting, note } = await joinByLink(link, password, topic, instructions);
+    const view = publicView(meeting);
+    const goal = instructionsFor(meeting);
+    if (goal) view.instructions = goal;
+    return ok(note ? { ...view, note } : view);
   }));
 
   server.registerTool('raise_hand', {

@@ -46,6 +46,15 @@ details, and drives a headless **Meeting Bot** that joins, transcribes, and spea
   text: `send_chat` or `share_content`. Keep spoken answers short.
 - `get_meeting_state` tells who is here. `mute`/`unmute` stop and restart note-taking.
 
+## Run a meeting for the owner (opt-in)
+
+By default the bot only transcribes. When the owner gives the bot a goal and instructions for a meeting
+(for example a daily check-in with each employee: set questions, follow-ups, a report back), pass them as
+`instructions` to `schedule_meeting`, `update_schedule`, `import_schedule` or `join_meeting`. They come back
+in `list_schedule`, `meeting_status` and the `schedule.due` / `meeting.joined` events; the server never runs
+them, you do. Follow `docs/recipes/daily-checkins.md` in this package: consent notice first, the run loop,
+the owner report format, and opt-in escalation under the owner's own rules.
+
 ## After the meeting
 
 `end_meeting` (or `leave_meeting`) saves the transcript; `get_transcript` still works afterwards. Write the
