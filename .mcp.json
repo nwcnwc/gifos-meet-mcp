@@ -5,7 +5,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "git+https://github.com/nwcnwc/gifos-meet-mcp.git#d5585ea5912911d8d7650e0357bfd207aafb9fed"
+        "git+https://github.com/nwcnwc/gifos-meet-mcp.git#f9e3ad124730386f485ece329901297a18a299ff"
       ],
       "env": {
         "npm_config_ignore_scripts": "true",
