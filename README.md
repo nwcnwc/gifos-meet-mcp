@@ -26,9 +26,12 @@ Grok Bot ──MCP (stdio)──▶ gifos-meet-mcp ──▶ headless Chromium (
                                                    └─ Offline Captions (Whisper): speech to text
 ```
 
-- **Grok Bot is the brain.** The server has no language model. Meet Bot is handed both of its switches off
-  (`respond_to_command`, `speak`) on every join, so it never answers on its own; it says exactly the lines
-  Grok Bot passes to `say`.
+- **Grok Bot is the brain.** The server has no language model. On every join Meet Bot is handed
+  `respond_to_command` and `speak`, both off (and never the old `conversation_voice`, `llm`, `tts`, or `stt`
+  fields). Turning the microphone on and transcribing does not make the bot answer. talk:true does: it turns
+  those two switches on so the bot answers a line addressed to it, and it hands you that line.
+  `wait_for_speech` blocks until one arrives, and a talk notification carries the same line. You can still
+  `say` a line of your own. With talk left off, the bot does not answer.
 - **Scheduling without joining.** `create_meeting` mints a link and returns every invite detail (title, start
   and end with time zone, join link, description, how guests get in, who does what, ready-to-send text).
   Nothing joins and nothing is sent: Grok Bot sends the invite through the user's own mail or calendar.
@@ -152,9 +155,10 @@ Meeting tools (this server):
 | Tool | Arguments | Returns |
 |---|---|---|
 | `create_meeting` | `name`, `start?`, `end?`, `timezone?`, `description?`, `room_password?`, `admin_password?`, `town_hall?`, `host_name?` | `{ meeting_id, link, host_runs_room, invite }`. Nothing joins, nothing is sent. `invite` has `title`, `start`/`end` (`{iso, timezone, local}`), `join_url`, `description`, `admit`, `roles`, `text`, `calendar`. `admin_password` (the human host's) makes a room they run; it is used for this call only and never stored or returned. The room password is in the invite text, never in the link. |
-| `start_meeting` | `meeting_id`, `room_password?` | The bot joins now and starts transcribing. |
-| `join_meeting` | `link`, `password?`, `topic?`, `instructions?` | The bot joins someone else's GifOS meeting now. `instructions` (optional, plain text, at most 4000 characters) is the owner's goal for this meeting, returned by `meeting_status`; without it the bot only transcribes. |
-| `raise_hand`, `set_mic`, `set_camera` | `meeting_id`, `on` | Meet Bot's hand, microphone and camera, or the gap when the app lacks the method. |
+| `start_meeting` | `meeting_id`, `room_password?`, `talk?` | The bot joins now and starts transcribing. Turning the microphone on and transcribing does not make the bot answer. talk:true does. |
+| `join_meeting` | `link`, `password?`, `topic?`, `instructions?`, `talk?` | The bot joins someone else's GifOS meeting now. `instructions` (optional, plain text, at most 4000 characters) is the owner's goal for this meeting, returned by `meeting_status`; without it the bot only transcribes. Turning the microphone on and transcribing does not make the bot answer. talk:true does: the bot answers lines addressed to it, and `wait_for_speech` returns each of those lines. With talk left off, the bot does not answer. |
+| `wait_for_speech` | `meeting_id`, `timeout_ms?` | Blocks until a line addressed to the bot arrives in a meeting joined with `talk:true`. Turning the microphone on and transcribing does not make the bot answer. talk:true does. |
+| `raise_hand`, `set_mic`, `set_camera` | `meeting_id`, `on` | Meet Bot's hand, microphone and camera, or the gap when the app lacks the method. `set_mic` does not make the bot answer. |
 
 Shared tools (from gifos-mcp-core, the same in gifos-broadcast-mcp):
 
@@ -185,7 +189,7 @@ The user says: *"Set up a meeting with Alice and Bob at 5 PM, take notes, and se
    room_password: "<made up>" })` and gets the link and `invite`.
 2. Grok Bot sends `invite.text` to Alice and Bob from the user's mail, after the user approves.
 3. Grok Bot calls `schedule_meeting({ link, room_password, start })`. The bot joins at 16:59.
-4. During the meeting Grok Bot loops on `wait_lines`, and answers a `to_bot` question with `say`.
+4. During the meeting Grok Bot loops on `wait_lines` for notes. To have the bot answer when someone says its name, pass `talk: true` on `start_meeting` or `join_meeting` and loop on `wait_for_speech`. Turning the microphone on and transcribing does not make the bot answer. talk:true does. A `to_bot` question is answered with `say` when you want words of your own.
 5. Afterwards Grok Bot calls `end_meeting`, reads `get_transcript`, writes the summary and, with the user's
    approval, sends it.
 
@@ -222,8 +226,11 @@ The user says: *"Set up a meeting with Alice and Bob at 5 PM, take notes, and se
   (and its `line.*` event), `send_chat` and `say` still report what Meet Bot sent, and the kept lines are
   written in order at the next append that works. A file whose last line was torn is ended before the next line.
 - **No model, no key.** There is no language model in this server and no model URL or API key is read. The
-  assistant that calls the tools writes every word the bot says. `MeetingBot.setVoice` receives
-  `{ respond_to_command: false, speak: false }` on every join, so Meet Bot answers nothing on its own.
+  assistant that calls the tools writes every word the bot says, except a meeting joined with `talk: true`:
+  that hands Meet Bot `respond_to_command` and `speak`, both on, so it answers a line addressed to it.
+  `MeetingBot.setVoice` receives `{ respond_to_command: false, speak: false }` on every join first, and never
+  the old `conversation_voice`, `llm`, `tts`, or `stt` fields. Turning the microphone on and transcribing
+  does not make the bot answer. talk:true does. With talk left off, the bot does not answer.
 - **No outgoing messages.** The server never sends email, calendar invites or anything else. Grok Bot does that
   through your own connectors, and you approve each send. Follow-up after the meeting is Grok Bot's job.
 - **HTTP mode** binds to 127.0.0.1, checks the `Host` header (DNS-rebinding protection), and can require a

@@ -7,9 +7,11 @@ import {
   meetingId, newRoom, hostKey, meetingLink, plainLink, meetingInvite, publicView, scrub, instructionsField,
   CAMERA_GAP, HAND_GAP, MIC_GAP,
 } from 'gifos-mcp-core';
+import { attachTalk, PLAIN } from './talk.js';
 
 export function registerMeetTools(server, ctx) {
   const { cfg, meetings, ok, fail, guarded, need, needLive, enterByHand, joinByLink, instructionsFor, secrets, control, bot } = ctx;
+  const talk = attachTalk(server, ctx);
 
   server.registerTool('create_meeting', {
     title: 'Create a GifOS meeting (link and invite details, no join)',
@@ -45,32 +47,55 @@ export function registerMeetTools(server, ctx) {
 
   server.registerTool('start_meeting', {
     title: 'Start a meeting (the bot joins and transcribes)',
-    description: 'The headless Meeting Bot joins the meeting made with create_meeting now and starts transcribing. Everyone sees it as a tile labelled 🤖 bot. Pass the room password if the invite has one.',
+    description: 'The headless Meeting Bot joins the meeting made with create_meeting now and starts transcribing. Everyone sees it as a tile labelled 🤖 bot. Pass the room password if the invite has one. ' + PLAIN + ' Pass talk:true to start the listen and respond loop. With talk left off, the bot does not answer.',
     inputSchema: {
       meeting_id: meetingId,
       room_password: z.string().min(1).max(200).optional().describe('The room password guests type, if the meeting has one.'),
+      talk: z.boolean().optional().describe(PLAIN + ' true starts the listen and respond loop and hands you each addressed line.'),
     },
-  }, guarded(async ({ meeting_id, room_password }) => {
+  }, guarded(async ({ meeting_id, room_password, talk: talkOn }) => {
     const m = need(meeting_id);
-    if (m.state === 'live') return ok({ ...publicView(m), note: 'Already live.' });
-    return ok(publicView(await enterByHand(m, room_password)));
+    if (m.state === 'live') {
+      if (talkOn === true) await talk.arm(m.meeting_id);
+      const view = { ...publicView(meetings.get(m.meeting_id)), note: 'Already live.' };
+      if (talkOn === true) {
+        view.talk = true;
+        view.note = 'Already live. ' + PLAIN + ' Call wait_for_speech; it blocks until someone addresses the bot.';
+      }
+      return ok(view);
+    }
+    const joined = await enterByHand(m, room_password);
+    const view = publicView(joined);
+    if (talkOn === true) {
+      await talk.arm(joined.meeting_id);
+      view.talk = true;
+      view.note = PLAIN + ' Call wait_for_speech; it blocks until someone addresses the bot. A talk notification carries the same line.';
+    }
+    return ok(view);
   }));
 
   server.registerTool('join_meeting', {
     title: 'Join an existing GifOS meeting by link',
-    description: 'The Meeting Bot joins a GifOS meeting now and starts transcribing. A join at a later time is schedule_meeting, not this tool. The room password is kept on the schedule when one is passed, and is never returned. instructions, when given, are the owner\'s goal for this meeting, handed back to you by meeting_status; without them the bot only transcribes.',
+    description: 'The Meeting Bot joins a GifOS meeting now and starts transcribing. A join at a later time is schedule_meeting, not this tool. The room password is kept on the schedule when one is passed, and is never returned. instructions, when given, are the owner\'s goal for this meeting, handed back to you by meeting_status; without them the bot only transcribes. ' + PLAIN + ' Pass talk:true to start the listen and respond loop. With talk left off, the bot does not answer.',
     inputSchema: {
       link: z.string().url().max(2048).describe('The GifOS meeting link.'),
       password: z.string().max(200).optional().describe('The room password guests type, if the meeting has one.'),
       topic: z.string().max(200).optional().describe('A name for this meeting in the local list.'),
       instructions: instructionsField,
+      talk: z.boolean().optional().describe(PLAIN + ' true starts the listen and respond loop and hands you each addressed line.'),
     },
-  }, guarded(async ({ link, password, topic, instructions }) => {
+  }, guarded(async ({ link, password, topic, instructions, talk: talkOn }) => {
     const { meeting, note } = await joinByLink(link, password, topic, instructions);
     const view = publicView(meeting);
     const goal = instructionsFor(meeting);
     if (goal) view.instructions = goal;
-    return ok(note ? { ...view, note } : view);
+    if (talkOn === true) {
+      await talk.arm(meeting.meeting_id);
+      view.talk = true;
+      const extra = PLAIN + ' Call wait_for_speech; it blocks until someone addresses the bot. A talk notification carries the same line.';
+      view.note = note ? note + ' ' + extra : extra;
+    }
+    return ok(note && talkOn !== true ? { ...view, note } : view);
   }));
 
   server.registerTool('raise_hand', {
@@ -88,7 +113,7 @@ export function registerMeetTools(server, ctx) {
 
   server.registerTool('set_mic', {
     title: 'Turn the Meeting Bot microphone on or off',
-    description: 'Turns Meeting Bot\'s microphone on or off. mute and unmute only stop or start captions; they do not touch this microphone. Contract version 1 gives the bot no microphone, and then this reports the gap.',
+    description: 'Turns Meeting Bot\'s microphone on or off. mute and unmute only stop or start captions; they do not touch this microphone. Contract version 1 gives the bot no microphone, and then this reports the gap. ' + PLAIN,
     inputSchema: {
       meeting_id: meetingId,
       on: z.boolean().describe('true to unmute, false to mute.'),

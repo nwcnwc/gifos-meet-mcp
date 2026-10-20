@@ -13,7 +13,7 @@ metadata:
 
 The `gifos-meet` MCP server runs on the user's own computer. It makes GifOS meeting links, returns invite
 details, and drives a headless **Meeting Bot** that joins, transcribes, and speaks the lines you give it.
-**You are the brain**: the bot never answers on its own and there is no model inside the server.
+**You are the brain**: there is no model inside the server. Turning the microphone on and transcribing does not make the bot answer. talk:true does. With talk left off, the bot does not answer.
 
 ## Make a meeting (no join, nothing sent)
 
@@ -40,10 +40,15 @@ details, and drives a headless **Meeting Bot** that joins, transcribes, and spea
 
 ## Follow the meeting and reply fast
 
-- Loop on `wait_lines` with `since` set to the last `next`. It returns the moment a new line lands.
-  Lines addressed to the bot (its name, "bot", or a question) carry `to_bot: true`.
-- To answer out loud: `say` with one or two sentences (optional `voice`, a Kokoro voice name). To post
-  text: `send_chat` or `share_content`. Keep spoken answers short.
+- Turning the microphone on and transcribing does not make the bot answer. talk:true does. Pass `talk: true`
+  to `join_meeting` or `start_meeting`. That starts the listen and respond loop: the bot answers a line
+  addressed to it (its name, "bot", or a question), and that line is handed to you.
+- Loop on `wait_for_speech` for those addressed lines (it blocks until one arrives). A talk notification
+  carries the same line. Then call `wait_for_speech` again.
+- `wait_lines` still follows every line. Lines addressed to the bot carry `to_bot: true`.
+- To say words of your own out loud: `say` with one or two sentences (optional `voice`, a Kokoro voice name).
+  To post text: `send_chat` or `share_content`. Keep spoken answers short.
+- With talk left off, the bot does not answer. `set_mic` only opens or closes the microphone.
 - `get_meeting_state` tells who is here. `mute`/`unmute` stop and restart note-taking.
 
 ## Run a meeting for the owner (opt-in)

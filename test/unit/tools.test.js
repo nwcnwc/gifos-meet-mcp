@@ -70,7 +70,7 @@ test('lists every tool with an input schema', async () => {
   assert.deepEqual(names, ['cancel_schedule', 'capacity_status', 'create_meeting', 'end_meeting', 'get_meeting_state', 'get_transcript',
     'import_schedule', 'join_meeting', 'leave_meeting', 'list_meetings', 'list_schedule', 'meeting_status', 'meetings_report',
     'mute', 'raise_hand', 'say', 'schedule_meeting', 'send_chat', 'set_bot_profile', 'set_camera', 'set_mic', 'share_content',
-    'snapshot', 'start_meeting', 'status', 'tail_events', 'tail_lines', 'tail_transcript', 'unmute', 'update_schedule', 'wait_lines']);
+    'snapshot', 'start_meeting', 'status', 'tail_events', 'tail_lines', 'tail_transcript', 'unmute', 'update_schedule', 'wait_for_speech', 'wait_lines']);
   for (const t of tools) {
     assert.equal(t.inputSchema.type, 'object', t.name);
     assert.ok(t.description && t.description.length > 20, t.name + ' has a description');

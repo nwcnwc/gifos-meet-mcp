@@ -171,7 +171,7 @@ async function main() {
     await client.connect(transport);
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    check('MCP server lists its tools over stdio', tools.length === 31 && names.includes('wait_lines') && names.includes('set_bot_profile') && !names.includes('set_voice') && names.includes('say') && names.includes('schedule_meeting') && names.includes('leave_meeting'), names.join(', '));
+    check('MCP server lists its tools over stdio', tools.length === 32 && names.includes('wait_lines') && names.includes('wait_for_speech') && names.includes('set_bot_profile') && !names.includes('set_voice') && names.includes('say') && names.includes('schedule_meeting') && names.includes('leave_meeting'), names.join(', '));
 
     const created = await client.callTool({ name: 'create_meeting', arguments: { name: 'Demo meeting', admin_password: 'owner-key-77' } }, undefined, CALL);
     const meeting = JSON.parse(text(created));
