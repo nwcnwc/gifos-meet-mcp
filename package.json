@@ -24,7 +24,7 @@
   },
   "scripts": {
     "start": "node bin/gifos-meet-mcp.js",
-    "test": "node test/unit/run.js test/unit/tools.test.js test/unit/http.test.js test/unit/voice.test.js test/unit/invite.test.js test/unit/stage-a.test.js test/unit/stage-b.test.js test/unit/e2e-work.test.js test/unit/meetbot-reply.test.js test/unit/listed-apps.test.js test/unit/instructions.test.js test/unit/talk-gate.test.js test/unit/speech-fixture.test.js",
+    "test": "node test/unit/run.js test/unit/tools.test.js test/unit/http.test.js test/unit/voice.test.js test/unit/invite.test.js test/unit/stage-a.test.js test/unit/stage-b.test.js test/unit/e2e-work.test.js test/unit/meetbot-reply.test.js test/unit/listed-apps.test.js test/unit/instructions.test.js test/unit/talk-gate.test.js test/unit/speech-fixture.test.js test/unit/lock-pin.test.js",
     "test:e2e": "node test/e2e/run.js",
     "test:e2e:whisper": "node test/e2e/whisper.js",
     "test:e2e:stage-b": "node test/e2e/stage-b.js",
