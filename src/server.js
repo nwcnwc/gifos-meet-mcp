@@ -3,7 +3,7 @@ import { createContext, createServer as composeServer } from 'gifos-mcp-core';
 import { registerMeetTools } from './tools.js';
 
 export const NAME = 'gifos-meet-mcp';
-export const VERSION = '0.5.0';
+export const VERSION = '0.5.1';
 export const HTTP_PORT = 19520;
 export const README = 'https://github.com/nwcnwc/gifos-meet-mcp#readme';
 
