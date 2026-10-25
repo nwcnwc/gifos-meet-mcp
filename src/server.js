@@ -3,11 +3,12 @@ import { createContext, createServer as composeServer } from 'gifos-mcp-core';
 import { registerMeetTools } from './tools.js';
 
 export const NAME = 'gifos-meet-mcp';
-export const VERSION = '0.5.2';
+export const VERSION = '0.5.3';
 export const HTTP_PORT = 19520;
 export const README = 'https://github.com/nwcnwc/gifos-meet-mcp#readme';
 
-export const product = { name: NAME, version: VERSION, httpPort: HTTP_PORT, readme: README, register: registerMeetTools };
+export const product = { name: NAME, version: VERSION, httpPort: HTTP_PORT, readme: README, register: registerMeetTools,
+  onClose: (ctx) => (ctx.archive ? ctx.archive.flushAll() : null) };
 
 // One server over its own context (what the unit tests build). The bin
 // shares one context between every server it hands out.

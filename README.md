@@ -136,6 +136,9 @@ like any person's picture and nowhere else.
 | `GIFOS_TIMEOUT_MS` | `120000` | How long to wait for GifOS steps such as joining. |
 | `GIFOS_MCP_HTTP_TOKEN` | none | Bearer token for `--http`. |
 | `GIFOS_MCP_LAZY` | `0` | `1` starts the browser on the first tool call. |
+| `GIFOS_ALWAYS_RECORD` | `1` | Every meeting the bot starts or joins is recorded. `0` records only on `start_recording`. Everyone in the room sees ⏺ recording on the bot. |
+| `GIFOS_ALWAYS_TRANSCRIBE` | `1` | Every join turns captions on. `0` joins muted (`unmute` turns them on). |
+| `GIFOS_RECORD_SEGMENT_MIN` | `15` | Long meetings: the recording is saved to disk as a new segment file every this many minutes. |
 | `GIFOS_MCP_DEBUG` | `0` | `1` logs the GifOS console to stderr and adds caption state to `status`. |
 | `GIFOS_MCP_SHOTS` | none | A folder for screenshots of the bot's screens. |
 | `GIFOS_TRANSCRIPT_POLL_MS` | `300` | How often captions are copied from Meet Bot into the lines. |
@@ -159,6 +162,9 @@ Meeting tools (this server):
 | `join_meeting` | `link`, `password?`, `topic?`, `instructions?`, `talk?` | The bot joins someone else's GifOS meeting now. `instructions` (optional, plain text, at most 4000 characters) is the owner's goal for this meeting, returned by `meeting_status`; without it the bot only transcribes. Turning the microphone on and transcribing does not make the bot answer. talk:true does: the bot answers lines addressed to it, and `wait_for_speech` returns each of those lines. With talk left off, the bot does not answer. |
 | `wait_for_speech` | `meeting_id`, `timeout_ms?` | Blocks until a line addressed to the bot arrives in a meeting joined with `talk:true`. Turning the microphone on and transcribing does not make the bot answer. talk:true does. |
 | `raise_hand`, `set_mic`, `set_camera` | `meeting_id`, `on` | Meet Bot's hand, microphone and camera, or the gap when the app lacks the method. `set_mic` does not make the bot answer. |
+| `start_recording`, `stop_recording` | `meeting_id` | Meeting Bot records the room. Everyone sees ⏺ recording on the bot while it is on. |
+| `get_recording` | `meeting_id` | Stops recording if on, saves the file under `<home>/recordings/`, returns `path`, `name`, `mime`, `size`. |
+| `list_past_meetings`, `get_past_meeting` | `limit` / `meeting_id`, `include_transcript` | The meeting archive on disk: folders, recording segment paths, transcripts. |
 
 Shared tools (from gifos-mcp-core, the same in gifos-broadcast-mcp):
 
@@ -180,6 +186,10 @@ Shared tools (from gifos-mcp-core, the same in gifos-broadcast-mcp):
 
 The resource `gifos://meeting/{id}/transcript` is the live transcript as newline-delimited JSON; subscribe for
 `notifications/resources/updated`.
+
+## Meeting archive
+
+Each meeting the bot joins gets a folder that survives restarts: `<home>/meetings/<date>-<room>-<meeting_id>/` with `meta.json`, `recording-001.webm`, `recording-002.webm`, … (one per segment, in order), `transcript.json` and `transcript.md`. The transcript is rewritten every 30 seconds while the meeting is live. On `end_meeting`, `leave_meeting` or a clean shutdown the last segment and transcript are saved; after a crash the folder is marked `interrupted` on the next start and keeps every segment already saved. `list_past_meetings` and `get_past_meeting` find them. Recording defaults on because the Meeting Bot always shows the ⏺ recording indicator to everyone; set `GIFOS_ALWAYS_RECORD=0` where that is not wanted.
 
 ## Example: a 5 PM meeting
 

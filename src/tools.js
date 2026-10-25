@@ -2,12 +2,14 @@
 // invite needs), put the bot in it, and the bot's hand, microphone and
 // camera. Transcripts, speaking, chat, leaving and the join schedule are the
 // shared tools from gifos-mcp-core.
+import fs from 'node:fs';
 import { z } from 'zod';
 import {
   meetingId, newRoom, hostKey, meetingLink, plainLink, meetingInvite, publicView, scrub, instructionsField, cleanInstructions, assertNotPast,
   CAMERA_GAP, HAND_GAP, MIC_GAP,
 } from 'gifos-mcp-core';
 import { attachTalk, PLAIN } from './talk.js';
+import { MeetingArchive, archiveConfig } from './archive.js';
 
 export function registerMeetTools(server, ctx) {
   const { cfg, meetings, schedule, holdPhase, ok, fail, guarded, need, needLive, enterByHand, joinByLink, instructionsFor, secrets, control, bot } = ctx;
@@ -23,6 +25,7 @@ export function registerMeetTools(server, ctx) {
     if (order) holdPhase(order, { instructions: clean });
   }
   const talk = attachTalk(server, ctx);
+  const archive = attachArchive(ctx);
 
   server.registerTool('create_meeting', {
     title: 'Create a GifOS meeting (link and invite details, no join)',
@@ -157,4 +160,93 @@ export function registerMeetTools(server, ctx) {
     const cam = await control('setCamera', CAMERA_GAP, () => bot.setCamera(m.session_id, on));
     return ok({ meeting_id: m.meeting_id, camera: !!on, result: cam.result == null ? null : cam.result });
   }));
+
+  // Recording. The Meeting Bot shows ⏺ recording on its tile to everyone in
+  // the room while it records; these tools do not hide or change that.
+  const recCall = (method) => {
+    if (typeof bot[method] !== 'function') throw new Error('This bot has no ' + method + ' method; update gifos-mcp-core.');
+    return (...a) => bot[method](...a);
+  };
+  server.registerTool('list_past_meetings', {
+    title: 'List archived meetings (recordings and transcripts)',
+    description: 'Every meeting this server has joined, newest first, from its folder on disk (survives restarts): meeting_id, topic, start and end, state, recording segment count, transcript line count, and the folder path.',
+    inputSchema: { limit: z.number().int().min(1).max(500).optional().describe('At most this many (default 50).') },
+  }, guarded(async ({ limit }) => {
+    const rows = archive.list().slice(0, limit || 50).map((r) => ({
+      meeting_id: r.meta.meeting_id, topic: r.meta.topic, started_at: r.meta.started_at, ended_at: r.meta.ended_at, state: r.meta.state,
+      segments: (r.meta.segments || []).length, bytes: (r.meta.segments || []).reduce((a, x) => a + (x.size || 0), 0),
+      transcript_lines: r.meta.transcript_lines == null ? null : r.meta.transcript_lines, folder: r.folder,
+    }));
+    return ok({ root: archive.root, meetings: rows });
+  }));
+
+  server.registerTool('get_past_meeting', {
+    title: 'Get an archived meeting (recording paths and transcript)',
+    description: 'One archived meeting by meeting_id or folder name: its metadata, the local path of each recording segment (WebM, in order), and the transcript files. include_transcript returns the transcript text too.',
+    inputSchema: {
+      meeting_id: z.string().min(1).max(200).describe('meeting_id or folder name from list_past_meetings.'),
+      include_transcript: z.boolean().optional().describe('Also return transcript.md text (up to 200 KB).'),
+    },
+  }, guarded(async ({ meeting_id, include_transcript }) => {
+    const past = archive.get(meeting_id);
+    if (include_transcript) {
+      try { past.transcript = fs.readFileSync(past.transcript_md, 'utf8').slice(0, 200000); } catch (e) { past.transcript = null; }
+    }
+    return ok(past);
+  }));
+
+  const REC_NOTE = 'Everyone in the room sees the ⏺ recording indicator on the bot while it records.';
+  server.registerTool('start_recording', {
+    title: 'Start recording the meeting',
+    description: 'Meeting Bot starts recording the meeting (audio and video of the room, usually WebM). ' + REC_NOTE + ' stop_recording stops it; get_recording saves the file locally.',
+    inputSchema: { meeting_id: meetingId },
+  }, guarded(async ({ meeting_id }) => {
+    const m = needLive(meeting_id);
+    const r = archive.live.has(m.meeting_id) ? (await archive.startRecording(m.meeting_id), { rec: true }) : await recCall('startRecording')(m.session_id);
+    return ok({ meeting_id: m.meeting_id, recording: true, rec: r && r.rec != null ? !!r.rec : true, note: REC_NOTE });
+  }));
+
+  server.registerTool('stop_recording', {
+    title: 'Stop recording the meeting',
+    description: 'Meeting Bot stops recording and keeps the file on this computer. get_recording saves it to a local path.',
+    inputSchema: { meeting_id: meetingId },
+  }, guarded(async ({ meeting_id }) => {
+    const m = needLive(meeting_id);
+    if (archive.live.has(m.meeting_id)) {
+      const meta = await archive.stopRecording(m.meeting_id);
+      const seg = meta && meta.segments.at(-1);
+      return ok({ meeting_id: m.meeting_id, recording: false, saved: seg ? { file: seg.file, size: seg.size } : null, folder: archive.live.get(m.meeting_id).dir });
+    }
+    const r = await recCall('stopRecording')(m.session_id);
+    return ok({ meeting_id: m.meeting_id, recording: false, rec: r && r.rec != null ? !!r.rec : false });
+  }));
+
+  server.registerTool('get_recording', {
+    title: 'Save the meeting recording to a local file',
+    description: 'Fetches the meeting recording from Meeting Bot and saves it on this computer. Stops recording first if it is still on. Returns path, name, mime and size in bytes. The file stays local; nothing is uploaded.',
+    inputSchema: { meeting_id: meetingId },
+  }, guarded(async ({ meeting_id }) => {
+    const m = needLive(meeting_id);
+    if (archive.live.has(m.meeting_id)) {
+      await archive.stopRecording(m.meeting_id);
+      const past = archive.get(m.meeting_id);
+      const seg = past.segments.at(-1);
+      if (!seg) throw new Error('There is no recording for this meeting yet.');
+      return ok({ meeting_id: m.meeting_id, path: seg.path, name: seg.file, mime: seg.mime, size: seg.size, recording: false, segments: past.segments.map((x) => x.path), folder: past.folder });
+    }
+    const f = await recCall('getRecording')(m.session_id);
+    return ok({ meeting_id: m.meeting_id, path: f.path, name: f.name, mime: f.mime, size: f.size, recording: false });
+  }));
+}
+
+// One archive per context, hooked into its joins and leaves.
+export function attachArchive(ctx) {
+  if (ctx.archive) return ctx.archive;
+  const archive = new MeetingArchive({ home: ctx.cfg.home, bot: ctx.bot, transcript: ctx.transcript, opts: { ...archiveConfig(), ...(ctx.cfg.archive || {}) } });
+  ctx.archive = archive;
+  if (ctx.hooks) {
+    ctx.hooks.joined.push((m) => archive.joined(m));
+    ctx.hooks.leaving.push((m) => archive.leaving(m));
+  }
+  return archive;
 }
