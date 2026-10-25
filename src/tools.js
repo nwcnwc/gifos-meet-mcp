@@ -62,6 +62,9 @@ export function registerMeetTools(server, ctx) {
     }
   });
 
+  const languageField = z.string().min(2).max(12).regex(/^(auto|[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})?)$/).optional()
+    .describe('The language people speak, for the transcript: auto (default, Whisper detects it) or a code such as ru, es or pt-BR.');
+
   server.registerTool('start_meeting', {
     title: 'Start a meeting (the bot joins and transcribes)',
     description: 'The headless Meeting Bot joins the meeting made with create_meeting now and starts transcribing. Everyone sees it as a tile labelled 🤖 bot. Pass the room password if the invite has one. ' + PLAIN + ' Pass talk:true to start the listen and respond loop. With talk left off, the bot does not answer. instructions, when given, set the owner\'s goal for this meeting (as on create_meeting); meeting_status hands them back.',
@@ -69,10 +72,12 @@ export function registerMeetTools(server, ctx) {
       meeting_id: meetingId,
       room_password: z.string().min(1).max(200).optional().describe('The room password guests type, if the meeting has one.'),
       instructions: instructionsField,
+      language: languageField,
       talk: z.boolean().optional().describe(PLAIN + ' true starts the listen and respond loop and hands you each addressed line.'),
     },
-  }, guarded(async ({ meeting_id, room_password, instructions, talk: talkOn }) => {
+  }, guarded(async ({ meeting_id, room_password, instructions, language, talk: talkOn }) => {
     const m = need(meeting_id);
+    if (language !== undefined) meetings.update(m.meeting_id, { language });
     setInstructions(m, instructions);
     const withGoal = (view) => {
       const goal = instructionsFor(meetings.get(m.meeting_id));
@@ -106,10 +111,11 @@ export function registerMeetTools(server, ctx) {
       password: z.string().max(200).optional().describe('The room password guests type, if the meeting has one.'),
       topic: z.string().max(200).optional().describe('A name for this meeting in the local list.'),
       instructions: instructionsField,
+      language: languageField,
       talk: z.boolean().optional().describe(PLAIN + ' true starts the listen and respond loop and hands you each addressed line.'),
     },
-  }, guarded(async ({ link, password, topic, instructions, talk: talkOn }) => {
-    const { meeting, note } = await joinByLink(link, password, topic, instructions);
+  }, guarded(async ({ link, password, topic, instructions, language, talk: talkOn }) => {
+    const { meeting, note } = await joinByLink(link, password, topic, instructions, { language });
     const view = publicView(meeting);
     const goal = instructionsFor(meeting);
     if (goal) view.instructions = goal;
