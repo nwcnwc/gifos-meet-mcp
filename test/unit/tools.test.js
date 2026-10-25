@@ -67,10 +67,10 @@ beforeEach(async () => {
 test('lists every tool with an input schema', async () => {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ['cancel_schedule', 'capacity_status', 'create_meeting', 'end_meeting', 'get_meeting_state', 'get_transcript',
-    'import_schedule', 'join_meeting', 'leave_meeting', 'list_meetings', 'list_schedule', 'meeting_status', 'meetings_report',
+  assert.deepEqual(names, ['cancel_schedule', 'capacity_status', 'create_meeting', 'end_meeting', 'get_meeting_state', 'get_past_meeting', 'get_recording', 'get_transcript',
+    'import_schedule', 'join_meeting', 'leave_meeting', 'list_meetings', 'list_past_meetings', 'list_schedule', 'meeting_status', 'meetings_report',
     'mute', 'raise_hand', 'say', 'schedule_meeting', 'send_chat', 'set_bot_profile', 'set_camera', 'set_mic', 'share_content',
-    'snapshot', 'start_meeting', 'status', 'tail_events', 'tail_lines', 'tail_transcript', 'unmute', 'update_schedule', 'wait_for_speech', 'wait_lines']);
+    'snapshot', 'start_meeting', 'start_recording', 'status', 'stop_recording', 'tail_events', 'tail_lines', 'tail_transcript', 'unmute', 'update_schedule', 'wait_for_speech', 'wait_lines']);
   for (const t of tools) {
     assert.equal(t.inputSchema.type, 'object', t.name);
     assert.ok(t.description && t.description.length > 20, t.name + ' has a description');
@@ -315,4 +315,46 @@ test('non-voice tools go through Meet Bot and gaps do not touch chat', async () 
   assert.deepEqual(bot.calls.at(-1), ['leave', 'mt_1']);
   const twice = json(await call('leave_meeting', { meeting_id: c.meeting_id }));
   assert.match(twice.note, /not in this meeting/);
+});
+
+test('recording tools go through Meeting Bot, archive segments, and list past meetings', async () => {
+  const c = await mint();
+  bot.startRecording = async (id) => { bot.calls.push(['startRecording', id]); return { id, rec: true }; };
+  bot.getRecording = async (id, opts) => {
+    bot.calls.push(['getRecording', id]);
+    fs.mkdirSync(opts.dir, { recursive: true });
+    const p = path.join(opts.dir, opts.file);
+    fs.writeFileSync(p, 'webm');
+    return { path: p, name: opts.file, mime: 'video/webm', size: 4 };
+  };
+  await call('start_meeting', { meeting_id: c.meeting_id });
+  assert.deepEqual(bot.calls.filter((r) => r[0] === 'startRecording'), [['startRecording', 'mt_1']], 'recording starts on join by itself');
+  const off = json(await call('stop_recording', { meeting_id: c.meeting_id }));
+  assert.equal(off.saved.file, 'recording-001.webm');
+  const on = json(await call('start_recording', { meeting_id: c.meeting_id }));
+  assert.equal(on.recording, true);
+  assert.match(on.note, /recording indicator/);
+  const got = json(await call('get_recording', { meeting_id: c.meeting_id }));
+  assert.equal(got.name, 'recording-002.webm');
+  assert.equal(got.size, 4);
+  assert.equal(got.segments.length, 2);
+  assert.equal(fs.readFileSync(got.path, 'utf8'), 'webm');
+  await call('send_chat', { meeting_id: c.meeting_id, text: 'hi' });
+  await call('end_meeting', { meeting_id: c.meeting_id });
+  const list = json(await call('list_past_meetings'));
+  assert.equal(list.meetings.length, 1);
+  assert.equal(list.meetings[0].meeting_id, c.meeting_id);
+  assert.equal(list.meetings[0].state, 'ended');
+  assert.equal(list.meetings[0].segments, 2);
+  const past = json(await call('get_past_meeting', { meeting_id: c.meeting_id, include_transcript: true }));
+  assert.ok(fs.existsSync(past.transcript_json));
+  assert.match(past.transcript, /# Transcript/);
+  assert.equal((await call('get_past_meeting', { meeting_id: 'nope' })).isError, true);
+});
+
+test('recording tools report a missing bot method as an error', async () => {
+  const c = await mint();
+  await call('start_meeting', { meeting_id: c.meeting_id });
+  const r = json(await call('list_past_meetings'));
+  assert.equal(r.meetings[0].state, 'live', 'the meeting is archived even when recording cannot start');
 });
