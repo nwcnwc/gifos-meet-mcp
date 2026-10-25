@@ -100,22 +100,22 @@ test('create_meeting adds the relay to the link when GIFOS_RELAY is set', async 
 
 test('create_meeting returns every invite detail, without joining and without sending anything', async () => {
   const r = json(await call('create_meeting', {
-    name: 'Budget review', start: '2026-10-20T17:00', end: '2026-10-20T18:00', timezone: 'America/Los_Angeles',
+    name: 'Budget review', start: '2027-10-20T17:00', end: '2027-10-20T18:00', timezone: 'America/Los_Angeles',
     description: 'Q4 numbers.', room_password: 'guest-ticket-9', host_name: 'Ada',
   }));
   assert.equal(r.host_runs_room, false, 'no host password: an open room');
-  assert.match(r.link, /#v=[0-9a-z]{24}$/);
+  assert.match(r.link, /\/meet\/[0-9a-z]{24}$/, 'an open room has the clean link');
   const inv = r.invite;
   assert.equal(inv.title, 'Budget review');
-  assert.equal(inv.start.local, '2026-10-20 17:00');
-  assert.equal(inv.end.local, '2026-10-20 18:00');
+  assert.equal(inv.start.local, '2027-10-20 17:00');
+  assert.equal(inv.end.local, '2027-10-20 18:00');
   assert.equal(inv.timezone, 'America/Los_Angeles');
   assert.equal(inv.admit.how, 'password');
   assert.equal(r.link.includes('guest-ticket-9'), false, 'the room password is never in the link');
   assert.match(inv.text, /guest-ticket-9/);
   assert.equal(bot.calls.length, 0, 'nothing joined');
   const listed = json(await call('list_meetings')).meetings.find((m) => m.meeting_id === r.meeting_id);
-  assert.equal(listed.start_time, '2026-10-21T00:00:00.000Z');
+  assert.equal(listed.start_time, '2027-10-21T00:00:00.000Z');
   const th = json(await call('create_meeting', { name: 'Town hall', town_hall: true }));
   assert.match(th.link, /&th=1$/);
   assert.equal(th.invite.kind, 'town_hall');

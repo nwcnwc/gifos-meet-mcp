@@ -4,18 +4,29 @@
 // shared tools from gifos-mcp-core.
 import { z } from 'zod';
 import {
-  meetingId, newRoom, hostKey, meetingLink, plainLink, meetingInvite, publicView, scrub, instructionsField,
+  meetingId, newRoom, hostKey, meetingLink, plainLink, meetingInvite, publicView, scrub, instructionsField, cleanInstructions, assertNotPast,
   CAMERA_GAP, HAND_GAP, MIC_GAP,
 } from 'gifos-mcp-core';
 import { attachTalk, PLAIN } from './talk.js';
 
 export function registerMeetTools(server, ctx) {
-  const { cfg, meetings, ok, fail, guarded, need, needLive, enterByHand, joinByLink, instructionsFor, secrets, control, bot } = ctx;
+  const { cfg, meetings, schedule, holdPhase, ok, fail, guarded, need, needLive, enterByHand, joinByLink, instructionsFor, secrets, control, bot } = ctx;
+
+  // The owner's instructions for a meeting made here, stored on it (and on
+  // its open order, which update_schedule changes) and handed back by
+  // meeting_status. undefined leaves them as they are.
+  function setInstructions(m, given) {
+    if (given === undefined) return;
+    const clean = cleanInstructions(given);
+    meetings.update(m.meeting_id, { instructions: clean });
+    const order = schedule.forMeeting(m.meeting_id);
+    if (order) holdPhase(order, { instructions: clean });
+  }
   const talk = attachTalk(server, ctx);
 
   server.registerTool('create_meeting', {
     title: 'Create a GifOS meeting (link and invite details, no join)',
-    description: 'Mints a GifOS meeting and returns its link plus everything an invite needs: title, start and end with time zone, the join link, description, how guests get in, and who does what, as fields and as ready-to-send text. Nothing joins and nothing is sent: you send the invite with your own mail or calendar, and call start_meeting or schedule_meeting when the bot should be there. admin_password is the human host\'s password for this call only (it makes a room they run); it is not stored, not logged and not returned. room_password, when given, is the password guests type; it appears in the invite text and never in the link.',
+    description: 'Mints a GifOS meeting and returns its link plus everything an invite needs: title, start and end with time zone, the join link, description, how guests get in, and who does what, as fields and as ready-to-send text. Nothing joins and nothing is sent: you send the invite with your own mail or calendar, and call start_meeting or schedule_meeting when the bot should be there. admin_password is the human host\'s password for this call only (it makes a room they run); it is not stored, not logged and not returned. room_password, when given, is the password guests type; it appears in the invite text and never in the link. instructions, when given, are the owner\'s goal for the bot in this meeting; start_meeting and meeting_status hand them back. A start that has already passed (more than 15 minutes ago) or is not a real date is refused.',
     inputSchema: {
       name: z.string().min(1).max(200).describe('The meeting title.'),
       admin_password: z.string().min(1).max(200).optional().describe('The human host\'s password. With it the room is one they run (host controls). Used for this call only; never stored or returned.'),
@@ -26,6 +37,7 @@ export function registerMeetTools(server, ctx) {
       room_password: z.string().min(1).max(200).optional().describe('The password guests type to get in. Put it in the invite; it is never part of the link.'),
       town_hall: z.boolean().optional().describe('A town hall: guests watch and listen, the host brings people up to speak.'),
       host_name: z.string().max(80).optional().describe('Who hosts, for the invite text.'),
+      instructions: instructionsField,
     },
   }, async (args) => {
     const hidden = () => secrets().concat(args.admin_password || '');
@@ -37,8 +49,10 @@ export function registerMeetTools(server, ctx) {
         title: args.name, link, start: args.start, end: args.end, timezone: args.timezone,
         description: args.description, roomPassword: args.room_password, hostName: args.host_name, townHall: !!args.town_hall,
       });
-      const m = meetings.add({ topic: args.name, room, link, start_time: invite.start ? invite.start.iso : null });
-      const body = JSON.stringify({ meeting_id: m.meeting_id, link, host_runs_room: !!key, invite }, null, 2);
+      assertNotPast(invite);
+      const goal = args.instructions === undefined ? '' : cleanInstructions(args.instructions);
+      const m = meetings.add({ topic: args.name, room, link, start_time: invite.start ? invite.start.iso : null, ...(goal ? { instructions: goal } : {}) });
+      const body = JSON.stringify({ meeting_id: m.meeting_id, link, host_runs_room: !!key, invite, ...(goal ? { instructions: goal } : {}) }, null, 2);
       return { content: [{ type: 'text', text: scrub(body, hidden()) }] };
     } catch (e) {
       return { isError: true, content: [{ type: 'text', text: scrub(String((e && e.message) || e), hidden()) }] };
@@ -47,25 +61,32 @@ export function registerMeetTools(server, ctx) {
 
   server.registerTool('start_meeting', {
     title: 'Start a meeting (the bot joins and transcribes)',
-    description: 'The headless Meeting Bot joins the meeting made with create_meeting now and starts transcribing. Everyone sees it as a tile labelled 🤖 bot. Pass the room password if the invite has one. ' + PLAIN + ' Pass talk:true to start the listen and respond loop. With talk left off, the bot does not answer.',
+    description: 'The headless Meeting Bot joins the meeting made with create_meeting now and starts transcribing. Everyone sees it as a tile labelled 🤖 bot. Pass the room password if the invite has one. ' + PLAIN + ' Pass talk:true to start the listen and respond loop. With talk left off, the bot does not answer. instructions, when given, set the owner\'s goal for this meeting (as on create_meeting); meeting_status hands them back.',
     inputSchema: {
       meeting_id: meetingId,
       room_password: z.string().min(1).max(200).optional().describe('The room password guests type, if the meeting has one.'),
+      instructions: instructionsField,
       talk: z.boolean().optional().describe(PLAIN + ' true starts the listen and respond loop and hands you each addressed line.'),
     },
-  }, guarded(async ({ meeting_id, room_password, talk: talkOn }) => {
+  }, guarded(async ({ meeting_id, room_password, instructions, talk: talkOn }) => {
     const m = need(meeting_id);
+    setInstructions(m, instructions);
+    const withGoal = (view) => {
+      const goal = instructionsFor(meetings.get(m.meeting_id));
+      if (goal) view.instructions = goal;
+      return view;
+    };
     if (m.state === 'live') {
       if (talkOn === true) await talk.arm(m.meeting_id);
-      const view = { ...publicView(meetings.get(m.meeting_id)), note: 'Already live.' };
+      const view = withGoal({ ...publicView(meetings.get(m.meeting_id)), note: 'Already live.' });
       if (talkOn === true) {
         view.talk = true;
         view.note = 'Already live. ' + PLAIN + ' Call wait_for_speech; it blocks until someone addresses the bot.';
       }
       return ok(view);
     }
-    const joined = await enterByHand(m, room_password);
-    const view = publicView(joined);
+    const joined = await enterByHand(meetings.get(m.meeting_id), room_password);
+    const view = withGoal(publicView(joined));
     if (talkOn === true) {
       await talk.arm(joined.meeting_id);
       view.talk = true;
