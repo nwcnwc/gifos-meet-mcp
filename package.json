@@ -35,8 +35,7 @@
     "model-context-protocol",
     "gifos",
     "meeting",
-    "transcript",
-    "grok-bot"
+    "transcript"
   ],
   "repository": {
     "type": "git",
