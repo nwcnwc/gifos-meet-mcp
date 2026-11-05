@@ -82,7 +82,7 @@ test('lists every tool with an input schema', async () => {
 test('create_meeting mints a link on GIFOS_URL and does not touch the browser', async () => {
   const r = await mint('Demo meeting');
   assert.match(r.meeting_id, /^m_[0-9a-f]{10}$/);
-  assert.match(r.link, /^http:\/\/127\.0\.0\.1:19510\/run\.html#v=[0-9a-z]{24}&av=[0-9a-f]{24}$/, 'a room the host runs: the link carries the host key verifier, never the password');
+  assert.match(r.link, /^http:\/\/127\.0\.0\.1:19510\/meet\/[0-9a-z]{24}\/[0-9a-f]{24}$/, 'a room the host runs: the link carries the host key verifier, never the password');
   assert.equal(bot.started, 0);
   assert.equal(bot.calls.length, 0);
   const again = await mint('Other');

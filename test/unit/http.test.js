@@ -40,7 +40,7 @@ test('streamable HTTP on 127.0.0.1 with a bearer token', async (t) => {
   assert.ok(names.includes('say') && names.includes('tail_transcript') && names.includes('wait_lines') && !names.includes('set_voice'));
   assert.ok(names.includes('schedule_meeting') && names.includes('capacity_status'));
   const r = JSON.parse((await client.callTool({ name: 'create_meeting', arguments: { name: 'Demo meeting', admin_password: 'owner-key-77' } })).content[0].text);
-  assert.match(r.link, /^https:\/\/gifos\.app\/run\.html#v=[0-9a-z]{24}&av=[0-9a-f]{24}$/);
+  assert.match(r.link, /^https:\/\/gifos\.app\/meet\/[0-9a-z]{24}\/[0-9a-f]{24}$/);
   assert.equal(JSON.stringify(r).includes('owner-key-77'), false);
   const l = JSON.parse((await client.callTool({ name: 'list_meetings', arguments: {} })).content[0].text);
   assert.equal(l.meetings[0].link, r.link, 'requests share one meeting store');

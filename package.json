@@ -35,8 +35,7 @@
     "model-context-protocol",
     "gifos",
     "meeting",
-    "transcript",
-    "grok-bot"
+    "transcript"
   ],
   "repository": {
     "type": "git",
@@ -45,7 +44,7 @@
   "homepage": "https://github.com/nwcnwc/gifos-meet-mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
-    "gifos-mcp-core": "git+https://github.com/nwcnwc/gifos-mcp-core.git#67dc838bb5f58ae5c51cd17f8fb1ef106c83fce5",
+    "gifos-mcp-core": "git+https://github.com/nwcnwc/gifos-mcp-core.git#71dc975475e53a8b6768d041218a5463a60626f7",
     "zod": "3.25.76"
   },
   "devDependencies": {

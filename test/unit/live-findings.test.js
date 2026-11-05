@@ -68,6 +68,13 @@ test('a plain meeting gets the clean /meet/<room> link, and the bot joins that l
   assert.equal(bot.calls[0][1], made.link);
 });
 
+test('the bot joins the /meet/<room>/<verifier> link a host copies from GifOS', async () => {
+  const link = 'https://gifos.app/meet/host-room-1/abcdef0123456789abcdef01';
+  const j = json(await call('join_meeting', { link }));
+  assert.equal(j.link, link);
+  assert.equal(bot.calls[0][1], link);
+});
+
 test('create_meeting refuses a start that is not a real time or has already passed', async () => {
   const bad = await call('create_meeting', { name: 'x', start: '2026-13-45T99:00' });
   assert.equal(bad.isError, true);
