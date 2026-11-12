@@ -50,10 +50,12 @@ This is the exact command the plugin's `.mcp.json` runs (stdio):
 
 ```sh
 npm_config_ignore_scripts=true ONNXRUNTIME_NODE_INSTALL_CUDA=skip \
-  npx -y git+https://github.com/nwcnwc/gifos-meet-mcp.git#<commit in .mcp.json>
+  npx -y npm@11.6.2 exec -y -- github:nwcnwc/gifos-meet-mcp#c6706103eb23eb8f95d30073290b0b90fb220a67
 ```
 
-`npx -y github:nwcnwc/gifos-meet-mcp` runs the newest commit instead. `npx` fetches the package through git.
+It speaks MCP over stdio, so on its own it waits for a client. `npm@11.6.2 exec` is there because the npm in
+Node 22 (10.9) fails on any `npx github:` package; with npm 11 or newer, `npx -y github:nwcnwc/gifos-meet-mcp`
+(the newest commit) works directly. The first run downloads about 700 MB of packages (Kokoro and ONNX Runtime).
 
 or from a clone:
 
@@ -85,14 +87,14 @@ By hand, add a local (stdio) MCP server:
     "gifos-meet": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "git+https://github.com/nwcnwc/gifos-meet-mcp.git#PIN_SHA"],
+      "args": ["-y", "npm@11.6.2", "exec", "-y", "--", "github:nwcnwc/gifos-meet-mcp#c6706103eb23eb8f95d30073290b0b90fb220a67"],
       "env": { "npm_config_ignore_scripts": "true", "ONNXRUNTIME_NODE_INSTALL_CUDA": "skip", "GIFOS_URL": "https://gifos.app" }
     }
   }
 }
 ```
 
-That pin is the same commit as `.mcp.json`. `npx github:` needs git.
+That pin is the same commit as `.mcp.json` (the code commit just before the commit that pins it). It runs through npm 11 (`npm@11.6.2 exec`) because the npm that ships with Node 22 (10.9) cannot run a package straight from GitHub with `npx` ("GitFetcher requires an Arborist constructor").
 
 The server warms up as soon as Grok Bot starts it (about 10 seconds, plus first-run downloads), so the first
 join does not wait. **It must be running at meeting time** for a scheduled join: run it on an always-on machine.
