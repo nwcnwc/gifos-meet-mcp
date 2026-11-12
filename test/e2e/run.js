@@ -25,6 +25,8 @@ import { missingApps } from './listed-apps.js';
 import { workDir } from './work.js';
 import { SYNTH_STT, SYNTH_TTS, SYNTH_LLM } from './synth.js';
 import { expectSpecProblem, heardWords } from './expect.js';
+import { startToneTts } from './tone-tts.js';
+import { peakOver, HEARD_DB } from './hears.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
@@ -130,6 +132,7 @@ async function main() {
       extra.push({ slug, ...(await packApp(dir, SITE_DIR, ['manifest.json', 'index.html'])), cover: logo });
     }
   }
+  let tone = null;
   let site = null;
   if (!GIVEN_URL) site = await startSite({ siteDir: SITE_DIR, port: SITE_PORT, extraApps: extra });
   else say('using GIFOS_URL ' + BASE + ' (no local site)');
@@ -147,6 +150,15 @@ async function main() {
   }
   say('relay ' + (relay || '(GifOS default)'));
 
+  // ---- the bot's voice ----
+  // E2E_TTS=kokoro: real Kokoro on this computer (downloads weights into GIFOS_MCP_HOME).
+  // Otherwise (whisper mode): a local stand-in that returns a 3 s tone, so each say is long enough
+  // for Alice's meter (500 ms samples) to measure. With no TTS the bot plays a 0.2 s blip, which
+  // the meter catches only some of the time.
+  const REAL_TTS = process.env.E2E_TTS === 'kokoro';
+  tone = STT === 'whisper' && !REAL_TTS ? await startToneTts(3) : null;
+  say('bot voice: ' + (STT !== 'whisper' ? 'synthetic provider' : tone ? 'local 3 s tone stand-in (' + tone.url + ')' : 'Kokoro'));
+
   // ---- the MCP server, over stdio ----
   const mcpHome = path.join(work, 'mcp-home');
   const transport = new StdioClientTransport({
@@ -156,10 +168,11 @@ async function main() {
       ...process.env,
       GIFOS_URL: BASE,
       GIFOS_RELAY: relay,
-      GIFOS_MCP_HOME: mcpHome,
+      GIFOS_MCP_HOME: process.env.E2E_MCP_HOME || mcpHome,
       GIFOS_STT_APP: STT === 'synthetic' ? 'stt-synthetic' : 'offline-stt-whisper',
       GIFOS_TTS_APP: STT === 'synthetic' ? 'tts-synthetic' : '',
-      GIFOS_TTS_ENGINE: STT === 'synthetic' ? 'kokoro' : 'none',
+      GIFOS_TTS_ENGINE: STT === 'synthetic' || REAL_TTS ? 'kokoro' : 'auto',
+      ...(tone ? { GIFOS_TTS_URL: tone.url } : {}),
       GIFOS_MCP_SHOTS: PROOF,
     },
     stderr: 'pipe',
@@ -298,25 +311,25 @@ async function main() {
         const since = await alice.evaluate(() => Date.now());
         const said = await client.callTool({ name: 'say', arguments: { meeting_id: meeting.meeting_id, text: lines[n % lines.length] } }, undefined, CALL);
         const spoken = said.isError ? null : JSON.parse(text(said));
-        let hearsBot = false; let last = null;
-        for (let i = 0; i < 40 && !hearsBot; i++) {
-          last = await alice.evaluate(({ since, key }) => {
-            const g = window.__gifosVideo;
-            const ring = g && g.meterLog ? (g.meterLog(since - 1000) || []) : [];
-            const loud = [];
-            for (const sec of ring) for (const [k, c] of Object.entries(sec.r || {})) if (c && c.db > -60) loud.push({ t: sec.t, k, db: Math.round(c.db), bot: !!(k.split(':')[1] && k.split(':')[1].slice(0, 8) === key) });
-            const m = g && g.meters ? g.meters() : null;
-            return { seconds: ring.length, loud, sources: m && m.rows ? m.rows.map((r) => ({ path: r.path, who: r.who, on: r.on, db: Math.round(r.db) })) : null, taps: m ? m.taps : null };
-          }, { since, key: botKey });
-          hearsBot = !!(last && botKey && last.loud.some((x) => x.bot));
-          if (!hearsBot) await sleep(250);
-        }
-        rounds.push({ n, spoken: !!(spoken && spoken.spoken), heard: hearsBot, last });
+        // The window is the whole line (the clip length, or 4 s for real speech) plus a margin for
+        // the wire and the page; the verdict is the peak over it, so one quiet second never decides.
+        const windowMs = (tone ? tone.secs * 1000 : 4000) + 2500;
+        await sleep(windowMs);
+        const last = await alice.evaluate(({ since }) => {
+          const g = window.__gifosVideo;
+          const ring = g && g.meterLog ? (g.meterLog(since - 1000) || []) : [];
+          const m = g && g.meters ? g.meters() : null;
+          return { ring, sources: m && m.rows ? m.rows.map((r) => ({ path: r.path, who: r.who, on: r.on, db: Math.round(r.db) })) : null };
+        }, { since });
+        const peak = botKey ? peakOver(last.ring, botKey, since - 1000, Date.now()) : -120;
+        const hearsBot = peak > HEARD_DB;
+        last.peak = peak;
+        rounds.push({ n, spoken: !!(spoken && spoken.spoken), heard: hearsBot, peak, last });
         await sleep(3000);
       }
       fs.writeFileSync(path.join(PROOF, 'alice-hears.json'), JSON.stringify({ botKey, rounds }, null, 2));
-      check('say: the bot speaks (Kokoro on this computer), every line', rounds.every((r) => r.spoken), rounds.map((r) => r.spoken));
-      check('Alice hears the bot speak, every line (her page meters the bot\'s voice over -60 dB)', rounds.every((r) => r.heard), JSON.stringify(rounds.map((r) => ({ n: r.n, heard: r.heard, loud: r.last && r.last.loud.length, sources: r.last && r.last.sources }))).slice(0, 900));
+      check('say: the bot speaks (' + (tone ? 'local 3 s tone stand-in' : 'Kokoro on this computer') + '), every line', rounds.every((r) => r.spoken), rounds.map((r) => r.spoken));
+      check('Alice hears the bot speak, every line (the peak of her page meter on the bot\'s voice over the whole say window is over -60 dB)', rounds.every((r) => r.heard), JSON.stringify(rounds.map((r) => ({ n: r.n, heard: r.heard, peak: r.peak, sources: r.last && r.last.sources }))).slice(0, 900));
     }
 
     // ---- GifOS 0.9.26: host sign-in, agenda, Take Turns, stage ----
@@ -380,6 +393,7 @@ async function main() {
     if (human) await human.close().catch(() => {});
     await client.close().catch(() => {});
     if (relayProc) relayProc.kill();
+    if (tone) { try { await tone.close(); } catch (e) { /* already closed */ } }
     if (site && site.close) { try { await site.close(); } catch (e) { /* already closed */ } }
   }
   say(failures ? failures + ' FAILURE(S)' : 'ALL PASS');
