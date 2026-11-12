@@ -14,8 +14,9 @@ The shared parts (the bot, transcripts, Kokoro, links and invite details) are
 [gifos-mcp-core](https://github.com/nwcnwc/gifos-mcp-core), pinned to an exact commit. Its sibling for
 broadcasts is [gifos-broadcast-mcp](https://github.com/nwcnwc/gifos-broadcast-mcp).
 
-> **Requires GifOS 0.9.23b or newer**, the release that ships the Meeting Bot store app (control contract
-> version 2). Until it is live on gifos.app, point `GIFOS_URL` at a GifOS 0.9.23b site.
+> **Works with GifOS 0.9.25 (live on gifos.app) and 0.9.26.** The meeting tools need the Meeting Bot store app
+> (control contract version 2). The agenda, app (Take Turns) and stage tools need GifOS 0.9.26; on an older
+> site they answer that the site does not have them yet.
 
 ## How it works
 
@@ -42,15 +43,17 @@ Grok Bot ──MCP (stdio)──▶ gifos-meet-mcp ──▶ headless Chromium (
   in the headless browser. The bot writes down each participant who is unmuted, credited by name, and never its
   own machine's microphone.
 
-## Install
+## Quick start
 
-You need **Node.js 20 or newer** and **Google Chrome or Microsoft Edge** (see *The browser* below).
+You need **Node.js 20 or newer**, **git**, and **Google Chrome or Microsoft Edge** (see *The browser* below).
+This is the exact command the plugin's `.mcp.json` runs (stdio):
 
 ```sh
-npx -y github:nwcnwc/gifos-meet-mcp
+npm_config_ignore_scripts=true ONNXRUNTIME_NODE_INSTALL_CUDA=skip \
+  npx -y git+https://github.com/nwcnwc/gifos-meet-mcp.git#<commit in .mcp.json>
 ```
 
-`npx` with a `github:` address downloads the package through git. Install git first.
+`npx -y github:nwcnwc/gifos-meet-mcp` runs the newest commit instead. `npx` fetches the package through git.
 
 or from a clone:
 
@@ -82,7 +85,7 @@ By hand, add a local (stdio) MCP server:
     "gifos-meet": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "git+https://github.com/nwcnwc/gifos-meet-mcp.git#40574d39bd0e556374dbe4c6b11f3d88b2786f06"],
+      "args": ["-y", "git+https://github.com/nwcnwc/gifos-meet-mcp.git#PIN_SHA"],
       "env": { "npm_config_ignore_scripts": "true", "ONNXRUNTIME_NODE_INSTALL_CUDA": "skip", "GIFOS_URL": "https://gifos.app" }
     }
   }
@@ -124,7 +127,7 @@ like any person's picture and nowhere else.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `GIFOS_URL` | `https://gifos.app` | The GifOS site. It must be 0.9.23b or newer. |
+| `GIFOS_URL` | `https://gifos.app` | The GifOS site (0.9.25 or newer; 0.9.26 for the agenda, app and stage tools). |
 | `GIFOS_RELAY` | GifOS default | A custom relay (`wss://…`), added to meeting links. |
 | `GIFOS_BOT_NAME` | generated | The name people see on the bot's tile (3 to 40 characters). Set alone, it keeps the stored password. |
 | `GIFOS_BOT_PASSWORD` | generated | The bot's password (the secret half). A `bot.json` that cannot be read is kept as `bot.json.bad-<ms>` and a new pair is generated. |
@@ -157,7 +160,7 @@ Meeting tools (this server):
 
 | Tool | Arguments | Returns |
 |---|---|---|
-| `create_meeting` | `name`, `start?`, `end?`, `timezone?`, `description?`, `room_password?`, `admin_password?`, `town_hall?`, `host_name?` | `{ meeting_id, link, host_runs_room, invite }`. Nothing joins, nothing is sent. `invite` has `title`, `start`/`end` (`{iso, timezone, local}`), `join_url`, `description`, `admit`, `roles`, `text`, `calendar`. `admin_password` (the human host's) makes a room they run; it is used for this call only and never stored or returned. The room password is in the invite text, never in the link. |
+| `create_meeting` | `name`, `type?` (`open` or `admin`), `host_password?`, `start?`, `end?`, `timezone?`, `description?`, `room_password?`, `host_name?` | `{ meeting_id, link, host_runs_room, invite }`. Nothing joins, nothing is sent. `invite` has `title`, `start`/`end` (`{iso, timezone, local}`), `join_url`, `description`, `admit`, `roles`, `text`, `calendar`. `type: admin` with `host_password` (the human host's; `admin_password` is the older name) makes a room they run, with host controls; the password is used for this call only and never stored or returned. The room password is in the invite text, never in the link. GifOS 0.9.26 has no town hall. |
 | `start_meeting` | `meeting_id`, `room_password?`, `talk?`, `language?` | The bot joins now and starts transcribing. `language` is what people speak: `auto` (default; Whisper detects it) or a code such as `ru`, `es` or `pt-BR`. One bot browser holds one setting, so rooms joined at the same time share the latest; `GIFOS_CC_LANG` sets the default. Turning the microphone on and transcribing does not make the bot answer. talk:true does. |
 | `join_meeting` | `link`, `password?`, `topic?`, `instructions?`, `talk?`, `language?` (as on `start_meeting`) | The bot joins someone else's GifOS meeting now. `instructions` (optional, plain text, at most 4000 characters) is the owner's goal for this meeting, returned by `meeting_status`; without it the bot only transcribes. Turning the microphone on and transcribing does not make the bot answer. talk:true does: the bot answers lines addressed to it, and `wait_for_speech` returns each of those lines. With talk left off, the bot does not answer. |
 | `wait_for_speech` | `meeting_id`, `timeout_ms?` | Blocks until a line addressed to the bot arrives in a meeting joined with `talk:true`. Turning the microphone on and transcribing does not make the bot answer. talk:true does. |
@@ -165,6 +168,19 @@ Meeting tools (this server):
 | `start_recording`, `stop_recording` | `meeting_id` | Meeting Bot records the room. Everyone sees ⏺ recording on the bot while it is on. |
 | `get_recording` | `meeting_id` | Stops recording if on, saves the file under `<home>/recordings/`, returns `path`, `name`, `mime`, `size`. |
 | `list_past_meetings`, `get_past_meeting` | `limit` / `meeting_id`, `include_transcript` | The meeting archive on disk: folders, recording segment paths, transcripts. |
+
+GifOS 0.9.26 meeting tools (from gifos-mcp-core). Each acts as the bot's own seat with that seat's rights; in a
+room with a host, the host-only ones need `sign_in_as_host` first:
+
+| Tool | Arguments | Returns |
+|---|---|---|
+| `sign_in_as_host` | `meeting_id`, `host_password` | Signs the bot in as the host (Admin > Sign in). The password is used once, never stored or returned; the bot's browser forgets the room's host key when it leaves. |
+| `set_agenda` | `meeting_id`, `items` (`[{title, minutes?}]`, up to 40), `append?` | Shares the agenda in the meeting's Agenda tab, with timekeeping. Refused if one exists unless `append`. |
+| `next_agenda_item` | `meeting_id` | Moves the agenda on (the first call starts item 1) and restarts its clock. |
+| `get_agenda` | `meeting_id` | The items, `current_item`, `time_left` (`m:ss`, or `+m:ss` when over). |
+| `list_apps`, `run_app`, `stop_app` | `meeting_id`, `app` | Apps the bot can run in the meeting for everyone; run one by name or app id; stop the one it started. |
+| `take_turns` | `meeting_id`, `action` (`start`, `state`, `next`, `back`, `pass`, `restart`, `shuffle`, `timer`), `seconds?` | Runs and drives Take Turns: who is up now and next, the time left, the order. Take Turns asks the person whose turn it is onto the stage on their own page; it never turns a camera or microphone on. |
+| `stage` | `meeting_id`, `action` (`state`, `step_on`, `step_off`, `allow`, `disallow`), `person_id?` | Who is on the stage; step the bot on or off; as host, allow or disallow a person (ids from `get_meeting_state`). |
 
 Shared tools (from gifos-mcp-core, the same in gifos-broadcast-mcp):
 
@@ -250,20 +266,31 @@ The user says: *"Set up a meeting with Alice and Bob at 5 PM, take notes, and se
 
 | Symptom | Fix |
 |---|---|
-| `The GifOS store at … has no "meeting-bot" app` | That GifOS is older than 0.9.23b. Set `GIFOS_URL` to a 0.9.23b or newer site. |
+| `The GifOS store at … has no "meeting-bot" app` | That GifOS is too old. Set `GIFOS_URL` to a 0.9.25 or newer site. |
+| `This GifOS site does not have that yet` | The agenda, app and stage tools need GifOS 0.9.26. |
+| The bot is in the room but nobody hears it (a `warning` in `get_meeting_state`) | This computer's network blocks the direct connections a meeting needs. GifOS 0.9.26 bridges such parts of a meeting over TURN; see *Networks that block UDP*. |
 | `Meeting Bot did not start: A bot with this name and password is already running…` | Another server (or a Meeting Bot window) uses the same name and password. Give this one its own `GIFOS_MCP_HOME` or `GIFOS_BOT_NAME`/`GIFOS_BOT_PASSWORD`. |
 | `get_transcript` stays at `(no transcript lines yet)` | Somebody has to speak with their mic on. The first transcription downloads the Whisper model (about 77 MB). |
 | `Kokoro: … does not match its pinned SHA-256` | A download was cut or a mirror served other bytes. The file was removed; start again. |
 | `No Chrome or Edge on this computer` | Install Google Chrome, or run `npx playwright install chromium` once, or set `GIFOS_CHROME`. The server never downloads a browser. |
 | A scheduled join did not happen | The server was not running, or the machine was asleep. |
+| The store install of Offline Captions stops at "That file isn't a GifOS app" | Chrome unpacks the 13 MB app into blob storage in its profile; a full or small disk under `GIFOS_MCP_HOME` (or `TMPDIR` for the e2e) makes that fail. Free some space or point it at a bigger disk. |
 | Anything else | `GIFOS_HEADLESS=0` shows the browser; `GIFOS_MCP_SHOTS=/tmp/shots` saves screenshots. |
 
 
 The e2e runner (`test/e2e/run.js`) serves a local site unless `GIFOS_URL` or `E2E_GIFOS_URL` is already set; then it uses that site and does not start its own.
 
+## Networks that block UDP
+
+A meeting's sound and video go peer to peer. On a network that drops UDP (some offices, some sandboxed
+computers), a GifOS 0.9.25 page cannot reach the people outside it: the bot sits in the room unheard and
+`get_meeting_state` returns a `warning`. GifOS 0.9.26 joins such parts of a meeting over TURN; a TURN server
+on TCP or TLS port 443 is what reaches a network that blocks all UDP. This server needs no setting for it:
+the bot's browser uses whatever the GifOS site offers.
+
 ## Testing instructions for marketplace reviewers
 
-**1. Unit tests (no network, no browser except one local page, about a minute).**
+**1. Unit tests (no network, about a minute).**
 
 ```sh
 git clone https://github.com/nwcnwc/gifos-meet-mcp.git && cd gifos-meet-mcp
@@ -275,26 +302,25 @@ They run every tool over a real MCP client/server pair with a fake bot, the `--h
 binary, the worker supervisor, and the real Meeting Bot app bundle in a local page, which checks that the bot
 answers nothing on its own and speaks exactly the line `say` gives it.
 
-**2. Try it live (needs GifOS 0.9.23b or newer).** Add the server to Grok Bot, then ask *"Create a GifOS
-meeting called Demo and start it."* Open the link in a browser, turn your mic on and say something. Ask
-*"What did I just say?"* (Grok Bot uses `wait_lines` or `get_transcript`), then *"Say hello in the meeting."*
-and *"End the meeting."*
+**2. Try it live.** Add the plugin (or the `.mcp.json` above) to Grok Bot, then ask *"Create a GifOS meeting
+called Demo and start it."* Open the link in Chrome on another computer or phone, turn your mic on and say
+something. Ask *"What did I just say?"* (Grok Bot uses `wait_lines` or `get_transcript`), then *"Say hello in
+the meeting."* and *"End the meeting."* The first start downloads the Meeting Bot app, the Whisper model
+(about 77 MB) and the Kokoro voice (about 92 MB).
 
-**3. Full end-to-end test against a local GifOS** (what the maintainers run).
+**3. Full end-to-end test against a local GifOS** (what the maintainers run; needs a GifOS relay, which the
+gifos-app checkout's site uses by default).
 
 ```sh
-git clone --branch release/0.9.23 --single-branch https://github.com/nwcnwc/gifos-app.git ../gifos-app
-git clone https://github.com/nwcnwc/gifos-apps-source.git ../gifos-apps-source
-GIFOS_APP_DIR=../gifos-app MEETING_BOT_SRC=../gifos-apps-source/meeting-bot \
-E2E_STT=synthetic npm run test:e2e
+git clone --branch release/0.9.26 --single-branch https://github.com/nwcnwc/gifos-app.git ../gifos-app
+mkdir -p .e2e/tmp && TMPDIR=$PWD/.e2e/tmp GIFOS_APP_DIR=../gifos-app npm run test:e2e:whisper
 ```
 
-Leave `E2E_RELAY` unset. The test uses the GifOS site's own relay, and a client on this computer can use the live relay.
-
-It serves the GifOS checkout on `127.0.0.1:19510`, spawns this server over stdio, creates a meeting, lets the
-bot join, has a second headless browser ("Alice") speak, and checks the transcript, `wait_lines`, `say`,
-chat, mute, end and the quiet bot. `E2E_STT=whisper` with `E2E_SPEECH_WAV` uses the real Whisper model.
+It serves the GifOS checkout on `127.0.0.1:19510`, spawns this server over stdio, creates a room the host runs,
+lets the bot join, has a second headless browser ("Alice") speak a recorded sentence, and checks that Whisper
+wrote her words, that the bot's spoken reply reaches Alice, the agenda, Take Turns, the stage, chat, mute and
+end. `E2E_STT=synthetic npm run test:e2e` swaps Whisper and Kokoro for stand-ins.
 
 ## License
 
-Copyright (c) 2026 Crowd Concepts, Inc. All rights reserved. See [LICENSE](LICENSE). GifOS, Meeting Bot and Kokoro are separate projects with their own licenses.
+MIT License. Copyright (c) 2026 Crowd Concepts, Inc. See [LICENSE](LICENSE). GifOS, Meeting Bot and Kokoro are separate projects with their own licenses.

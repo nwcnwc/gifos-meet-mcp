@@ -67,10 +67,10 @@ beforeEach(async () => {
 test('lists every tool with an input schema', async () => {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ['cancel_schedule', 'capacity_status', 'create_meeting', 'end_meeting', 'get_meeting_state', 'get_past_meeting', 'get_recording', 'get_transcript',
-    'import_schedule', 'join_meeting', 'leave_meeting', 'list_meetings', 'list_past_meetings', 'list_schedule', 'meeting_status', 'meetings_report',
-    'mute', 'raise_hand', 'say', 'schedule_meeting', 'send_chat', 'set_bot_profile', 'set_camera', 'set_mic', 'share_content',
-    'snapshot', 'start_meeting', 'start_recording', 'status', 'stop_recording', 'tail_events', 'tail_lines', 'tail_transcript', 'unmute', 'update_schedule', 'wait_for_speech', 'wait_lines']);
+  assert.deepEqual(names, ['cancel_schedule', 'capacity_status', 'create_meeting', 'end_meeting', 'get_agenda', 'get_meeting_state', 'get_past_meeting', 'get_recording', 'get_transcript',
+    'import_schedule', 'join_meeting', 'leave_meeting', 'list_apps', 'list_meetings', 'list_past_meetings', 'list_schedule', 'meeting_status', 'meetings_report',
+    'mute', 'next_agenda_item', 'raise_hand', 'run_app', 'say', 'schedule_meeting', 'send_chat', 'set_agenda', 'set_bot_profile', 'set_camera', 'set_mic', 'share_content',
+    'sign_in_as_host', 'snapshot', 'stage', 'start_meeting', 'start_recording', 'status', 'stop_app', 'stop_recording', 'tail_events', 'tail_lines', 'tail_transcript', 'take_turns', 'unmute', 'update_schedule', 'wait_for_speech', 'wait_lines']);
   for (const t of tools) {
     assert.equal(t.inputSchema.type, 'object', t.name);
     assert.ok(t.description && t.description.length > 20, t.name + ' has a description');
@@ -116,9 +116,20 @@ test('create_meeting returns every invite detail, without joining and without se
   assert.equal(bot.calls.length, 0, 'nothing joined');
   const listed = json(await call('list_meetings')).meetings.find((m) => m.meeting_id === r.meeting_id);
   assert.equal(listed.start_time, '2027-10-21T00:00:00.000Z');
+  // GifOS 0.9.26: the meeting types are open and admin (town hall is gone).
+  const adm = json(await call('create_meeting', { name: 'Board', type: 'admin', host_password: ADMIN }));
+  assert.equal(adm.host_runs_room, true);
+  assert.match(adm.link, /\/meet\/[0-9a-z]{24}\/[0-9a-f]{24}$/);
+  assert.equal(JSON.stringify(adm).includes(ADMIN), false, 'the host password is never returned');
+  const noPw = await call('create_meeting', { name: 'Board', type: 'admin' });
+  assert.equal(noPw.isError, true);
+  assert.match(noPw.content[0].text, /host_password/);
+  const mixed = await call('create_meeting', { name: 'Open', type: 'open', host_password: ADMIN });
+  assert.equal(mixed.isError, true);
+  assert.equal(mixed.content[0].text.includes(ADMIN), false);
   const th = json(await call('create_meeting', { name: 'Town hall', town_hall: true }));
-  assert.match(th.link, /&th=1$/);
-  assert.equal(th.invite.kind, 'town_hall');
+  assert.doesNotMatch(th.link, /th=1/);
+  assert.equal(th.invite.kind, 'meeting');
 });
 
 test('schemas refuse bad input', async () => {

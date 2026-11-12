@@ -171,9 +171,9 @@ async function main() {
     await client.connect(transport);
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    check('MCP server lists its tools over stdio', tools.length === 32 && names.includes('wait_lines') && names.includes('wait_for_speech') && names.includes('set_bot_profile') && !names.includes('set_voice') && names.includes('say') && names.includes('schedule_meeting') && names.includes('leave_meeting'), names.join(', '));
+    check('MCP server lists its tools over stdio', tools.length === 46 && ['set_agenda', 'next_agenda_item', 'get_agenda', 'run_app', 'take_turns', 'stage', 'sign_in_as_host'].every((n) => names.includes(n)) && names.includes('wait_lines') && names.includes('wait_for_speech') && names.includes('set_bot_profile') && !names.includes('set_voice') && names.includes('say') && names.includes('schedule_meeting') && names.includes('leave_meeting'), names.join(', '));
 
-    const created = await client.callTool({ name: 'create_meeting', arguments: { name: 'Demo meeting', admin_password: 'owner-key-77' } }, undefined, CALL);
+    const created = await client.callTool({ name: 'create_meeting', arguments: { name: 'Demo meeting', type: 'admin', host_password: 'owner-key-77' } }, undefined, CALL);
     const meeting = JSON.parse(text(created));
     check('create_meeting returns a link on the local GifOS, a room the host runs, and the invite details',
       meeting.link && meeting.link.startsWith(BASE + '/run.html#v=') && /&av=[0-9a-f]{24}/.test(meeting.link) && meeting.meeting_id &&
@@ -184,9 +184,10 @@ async function main() {
     fs.writeFileSync(face, tinyPng());
     const look = await client.callTool({ name: 'set_bot_profile', arguments: { name: BOT_LOOK_NAME, picture_path: face } }, undefined, CALL);
     check('set_bot_profile takes a name and a picture', !look.isError && JSON.parse(text(look)).picture === true, text(look));
-    const started = await client.callTool({ name: 'start_meeting', arguments: { meeting_id: meeting.meeting_id } }, undefined, CALL);
+    const started = await client.callTool({ name: 'start_meeting', arguments: { meeting_id: meeting.meeting_id, host_password: 'owner-key-77' } }, undefined, CALL);
     const live = started.isError ? null : JSON.parse(text(started));
     if (!check('start_meeting: the bot installs from the store, joins and transcribes', live && live.state === 'live' && live.transcribing, text(started))) throw new Error('start failed');
+    check('start_meeting with host_password: the bot is the host (the room opens for guests), the password not echoed', live.bot_is_host === true && !text(started).includes('owner-key-77'), text(started).slice(0, 300));
 
     const st = JSON.parse(text(await client.callTool({ name: 'status', arguments: {} }, undefined, CALL)));
     check('status: bot ready, one live meeting, STT app installed', st.bot.state === 'ready' && st.live_meetings.length === 1 && st.bot.stt_ready, JSON.stringify(st));
@@ -207,7 +208,16 @@ async function main() {
     const alice = await hctx.newPage();
     alice.on('pageerror', (e) => say('  [alice] ' + e.message));
     await alice.goto(meeting.link + '&DEBUG=on', { waitUntil: 'domcontentloaded', timeout: 90000 });
-    await alice.locator('.tile .botbadge').first().waitFor({ timeout: 90000 });
+    await alice.locator('.tile .botbadge').first().waitFor({ timeout: 90000 }).catch(async (e) => {
+      await alice.screenshot({ path: path.join(PROOF, 'alice-no-bot.png') }).catch(() => {});
+      const seen = await alice.evaluate(() => {
+        const g = window.__gifosVideo || {};
+        const pick = (f) => { try { return typeof g[f] === 'function' ? g[f]() : undefined; } catch (x) { return String(x); } };
+        return { url: location.href, status: pick('statusText'), tiles: [...document.querySelectorAll('.tile')].map((t) => t.className + ' ' + t.innerText.replace(/\s+/g, ' ').slice(0, 80)), body: document.body.className };
+      }).catch((x) => String(x));
+      say('alice at bot-badge timeout: ' + JSON.stringify(seen).slice(0, 1500));
+      throw e;
+    });
     let tile = '';
     for (let i = 0; i < 40; i++) {
       tile = await alice.locator('.tile', { has: alice.locator('.botbadge') }).first().innerText();
@@ -218,7 +228,8 @@ async function main() {
     // GifOS 0.9.23b fades the call buttons after 3 s without input; a person
     // moves the pointer to reach them, so the test does too.
     await alice.mouse.move(200, 200); await alice.mouse.move(220, 220);
-    await alice.locator('#mic').click();
+    // 0.9.26's floating bar can sit idle over the meeting; press the button itself.
+    await alice.evaluate(() => document.getElementById('mic').click());
     const micOn = await alice.waitForSelector('#mic:not(.off)', { timeout: 15000 }).then(() => true, () => false);
     check('Alice turns her microphone on', micOn);
     check('Alice sees the 🤖 bot badge', /bot/.test(tile), tile.replace(/\s+/g, ' '));
@@ -266,10 +277,85 @@ async function main() {
 
     const shared = await client.callTool({ name: 'share_content', arguments: { meeting_id: meeting.meeting_id, text: 'Agenda for the demo meeting: intro, questions.' } }, undefined, CALL);
     check('share_content answers', !shared.isError, text(shared));
-    await alice.locator('#chatbtn').click();
+    await alice.evaluate(() => document.getElementById('chatbtn').click());
     await alice.locator('#chatlog', { hasText: 'Agenda for the demo meeting' }).waitFor({ timeout: 30000 }).then(() => true, () => false)
       .then((seen) => check('Alice sees the shared text in chat', seen));
     await alice.screenshot({ path: path.join(PROOF, 'alice-chat.png') });
+
+    // ---- the bot speaks back: Alice hears the bot's voice (Kokoro) ----
+    if (STT === 'whisper') {
+      const ms = JSON.parse(text(await client.callTool({ name: 'get_meeting_state', arguments: { meeting_id: meeting.meeting_id } }, undefined, CALL)));
+      const botRow = (ms.people || []).find((p) => p.me) || (ms.people || []).find((p) => p.bot);
+      const botKey = botRow ? String(botRow.id).slice(0, 8) : '';
+      // Alice's page keeps a per-second ring of every voice it plays (DEBUG meters):
+      // read every second since the say, not one sample that can fall between words.
+      // Every say must reach Alice: E2E_SAYS lines (default 3), each read from her page's per-second
+      // meter ring (DEBUG) from the moment it was asked, with her page's sound sources listed for the record.
+      const SAYS = Number(process.env.E2E_SAYS || 3);
+      const lines = ['Thanks Alice, the garden works for me.', 'Tomorrow morning is good.', 'I will bring the budget.', 'See you in the garden.', 'Bye for now.'];
+      const rounds = [];
+      for (let n = 0; n < SAYS; n++) {
+        const since = await alice.evaluate(() => Date.now());
+        const said = await client.callTool({ name: 'say', arguments: { meeting_id: meeting.meeting_id, text: lines[n % lines.length] } }, undefined, CALL);
+        const spoken = said.isError ? null : JSON.parse(text(said));
+        let hearsBot = false; let last = null;
+        for (let i = 0; i < 40 && !hearsBot; i++) {
+          last = await alice.evaluate(({ since, key }) => {
+            const g = window.__gifosVideo;
+            const ring = g && g.meterLog ? (g.meterLog(since - 1000) || []) : [];
+            const loud = [];
+            for (const sec of ring) for (const [k, c] of Object.entries(sec.r || {})) if (c && c.db > -60) loud.push({ t: sec.t, k, db: Math.round(c.db), bot: !!(k.split(':')[1] && k.split(':')[1].slice(0, 8) === key) });
+            const m = g && g.meters ? g.meters() : null;
+            return { seconds: ring.length, loud, sources: m && m.rows ? m.rows.map((r) => ({ path: r.path, who: r.who, on: r.on, db: Math.round(r.db) })) : null, taps: m ? m.taps : null };
+          }, { since, key: botKey });
+          hearsBot = !!(last && botKey && last.loud.some((x) => x.bot));
+          if (!hearsBot) await sleep(250);
+        }
+        rounds.push({ n, spoken: !!(spoken && spoken.spoken), heard: hearsBot, last });
+        await sleep(3000);
+      }
+      fs.writeFileSync(path.join(PROOF, 'alice-hears.json'), JSON.stringify({ botKey, rounds }, null, 2));
+      check('say: the bot speaks (Kokoro on this computer), every line', rounds.every((r) => r.spoken), rounds.map((r) => r.spoken));
+      check('Alice hears the bot speak, every line (her page meters the bot\'s voice over -60 dB)', rounds.every((r) => r.heard), JSON.stringify(rounds.map((r) => ({ n: r.n, heard: r.heard, loud: r.last && r.last.loud.length, sources: r.last && r.last.sources }))).slice(0, 900));
+    }
+
+    // ---- GifOS 0.9.26: host sign-in, agenda, Take Turns, stage ----
+    const tool = async (name, args) => {
+      const r = await client.callTool({ name, arguments: { meeting_id: meeting.meeting_id, ...args } }, undefined, CALL);
+      return { err: !!r.isError, raw: text(r), v: r.isError ? null : JSON.parse(text(r)) };
+    };
+    const signed = await tool('sign_in_as_host', { host_password: 'owner-key-77' });
+    check('sign_in_as_host answers (already host) without echoing the password', !signed.err && signed.v.bot_is_host === true && !signed.raw.includes('owner-key-77'), signed.raw);
+    const ag = await tool('set_agenda', { items: [{ title: 'Intro', minutes: 2 }, { title: 'Questions', minutes: 3 }] });
+    check('set_agenda shares two items', !ag.err && ag.v.added.length === 2, ag.raw);
+    const nx = await tool('next_agenda_item', {});
+    check('next_agenda_item starts the agenda at item 1', !nx.err && nx.v.agenda && nx.v.agenda.cur === 0, nx.raw);
+    const ga = await tool('get_agenda', {});
+    check('get_agenda: current item and time left', !ga.err && ga.v.current_item === 'Intro' && /^\+?\d+:\d\d$/.test(ga.v.time_left || ''), ga.raw);
+    const aliceAgenda = await alice.waitForFunction(() => { const c = window.__meetContent && window.__meetContent(); return c && c.agenda && c.agenda.cur === 0 && c.agenda.items && c.agenda.items.length === 2 ? c.agenda : null; }, null, { timeout: 30000 })
+      .then((h) => h.jsonValue(), () => null);
+    check('Alice sees the agenda on item 1 with its clock', !!aliceAgenda, JSON.stringify(aliceAgenda));
+    await alice.screenshot({ path: path.join(PROOF, 'alice-agenda.png') });
+
+    const apps = await tool('list_apps', {});
+    check('list_apps lists Take Turns', !apps.err && apps.v.apps.some((a) => a.app_id === 'taketurns'), apps.raw.slice(0, 400));
+    const tt = await tool('take_turns', { action: 'start' });
+    check('take_turns start runs Take Turns and says who is up', !tt.err && tt.v.turns && !!tt.v.turns.up_now, tt.raw);
+    const aliceApp = await alice.waitForFunction(() => window.__gifosVideo && window.__gifosVideo.appActive && window.__gifosVideo.appActive(), null, { timeout: 30000 }).then(() => true, () => false);
+    check('Alice sees the app running in the meeting', aliceApp);
+    await alice.screenshot({ path: path.join(PROOF, 'alice-take-turns.png') });
+    const before = tt.v && tt.v.turns ? tt.v.turns.up_now : '';
+    const moved = await tool('take_turns', { action: 'next' });
+    let afterUp = moved.v && moved.v.turns ? moved.v.turns.up_now : '';
+    for (let i = 0; i < 10 && !moved.err && afterUp === before; i++) { await sleep(300); const s2 = await tool('take_turns', { action: 'state' }); afterUp = s2.v && s2.v.turns ? s2.v.turns.up_now : ''; }
+    check('take_turns next moves the turn on', !moved.err && afterUp && afterUp !== before, before + ' -> ' + afterUp + ' ' + moved.raw.slice(0, 300));
+    const stg = await tool('stage', { action: 'state' });
+    check('stage state answers with seats and who is on', !stg.err && Array.isArray(stg.v.on_stage), stg.raw);
+    const camOn = await tool('set_camera', { on: true });
+    check('set_camera on works on this GifOS (0.9.26 asks for a blur choice)', !camOn.err && !/gap/i.test(camOn.raw.slice(0, 40)), camOn.raw.slice(0, 300));
+    await tool('set_camera', { on: false });
+    const stopped = await tool('stop_app', {});
+    check('stop_app stops the app the bot started', !stopped.err && stopped.v.stopped === true, stopped.raw);
 
     const muted = JSON.parse(text(await client.callTool({ name: 'mute', arguments: { meeting_id: meeting.meeting_id } }, undefined, CALL)));
     // GifOS 0.9.23 transcribes in every browser and shows no per-tile chip for it.

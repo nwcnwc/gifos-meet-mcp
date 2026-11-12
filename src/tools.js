@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import { z } from 'zod';
 import {
   meetingId, newRoom, hostKey, meetingLink, plainLink, meetingInvite, publicView, scrub, instructionsField, cleanInstructions, assertNotPast,
-  CAMERA_GAP, HAND_GAP, MIC_GAP,
+  CAMERA_GAP, HAND_GAP, MIC_GAP, registerRoomTools,
 } from 'gifos-mcp-core';
 import { attachTalk, PLAIN } from './talk.js';
 import { MeetingArchive, archiveConfig } from './archive.js';
@@ -26,31 +26,50 @@ export function registerMeetTools(server, ctx) {
   }
   const talk = attachTalk(server, ctx);
   const archive = attachArchive(ctx);
+  // A host password given on a join signs the bot in as host right away (GifOS
+  // 0.9.26 keeps a host room closed until a host is there). It is used once and
+  // never echoed: a failure comes back as host_error with the password cut out.
+  async function signInHost(m, pw) {
+    if (!pw) return {};
+    try {
+      const v = await bot.room(m.session_id, 'host.signin', { password: pw });
+      return v && v.bot_is_host ? { bot_is_host: true } : { bot_is_host: false };
+    } catch (e) {
+      return { bot_is_host: false, host_error: scrub(String((e && e.message) || e).split(pw).join('***'), secrets()) };
+    }
+  }
+  // The agenda, apps (Take Turns), the stage and host sign-in (GifOS 0.9.26).
+  registerRoomTools(server, ctx, { name: 'gifos-meet-mcp' });
 
   server.registerTool('create_meeting', {
     title: 'Create a GifOS meeting (link and invite details, no join)',
-    description: 'Mints a GifOS meeting and returns its link plus everything an invite needs: title, start and end with time zone, the join link, description, how guests get in, and who does what, as fields and as ready-to-send text. Nothing joins and nothing is sent: you send the invite with your own mail or calendar, and call start_meeting or schedule_meeting when the bot should be there. admin_password is the human host\'s password for this call only (it makes a room they run); it is not stored, not logged and not returned. room_password, when given, is the password guests type; it appears in the invite text and never in the link. instructions, when given, are the owner\'s goal for the bot in this meeting; start_meeting and meeting_status hand them back. A start that has already passed (more than 15 minutes ago) or is not a real date is refused.',
+    description: 'Mints a GifOS meeting and returns its link plus everything an invite needs: title, start and end with time zone, the join link, description, how guests get in, and who does what, as fields and as ready-to-send text. Nothing joins and nothing is sent: you send the invite with your own mail or calendar, and call start_meeting or schedule_meeting when the bot should be there. type picks the room: open (default; anyone with the link) or admin (a room the human host runs, with host controls; needs host_password). host_password is used for this call only; it is not stored, not logged and not returned. room_password, when given, is the password guests type; it appears in the invite text and never in the link. instructions, when given, are the owner\'s goal for the bot in this meeting; start_meeting and meeting_status hand them back. A start that has already passed (more than 15 minutes ago) or is not a real date is refused.',
     inputSchema: {
       name: z.string().min(1).max(200).describe('The meeting title.'),
-      admin_password: z.string().min(1).max(200).optional().describe('The human host\'s password. With it the room is one they run (host controls). Used for this call only; never stored or returned.'),
+      type: z.enum(['open', 'admin']).optional().describe('open (default): anyone with the link joins. admin: a room the human host runs (host controls: room password, who may present, the agenda); needs host_password.'),
+      host_password: z.string().min(1).max(200).optional().describe('The human host\'s password for an admin room. Used for this call only; never stored or returned.'),
+      admin_password: z.string().min(1).max(200).optional().describe('Older name of host_password; same meaning.'),
       start: z.string().max(64).optional().describe('Start time: ISO with an offset, or a local time such as 2026-10-20T17:00 read in timezone.'),
       end: z.string().max(64).optional().describe('End time, same forms. Default start plus one hour.'),
       timezone: z.string().max(80).optional().describe('IANA time zone, for example America/Los_Angeles. Default UTC.'),
       description: z.string().max(4000).optional().describe('Agenda or notes for the invite.'),
       room_password: z.string().min(1).max(200).optional().describe('The password guests type to get in. Put it in the invite; it is never part of the link.'),
-      town_hall: z.boolean().optional().describe('A town hall: guests watch and listen, the host brings people up to speak.'),
       host_name: z.string().max(80).optional().describe('Who hosts, for the invite text.'),
       instructions: instructionsField,
     },
   }, async (args) => {
-    const hidden = () => secrets().concat(args.admin_password || '');
+    const hostPw = args.host_password || args.admin_password || '';
+    const hidden = () => secrets().concat(hostPw);
     try {
+      const type = args.type || (hostPw ? 'admin' : 'open');
+      if (type === 'admin' && !hostPw) throw new Error('An admin room needs host_password (the human host keeps it).');
+      if (type === 'open' && hostPw) throw new Error('host_password makes an admin room; pass type admin, or leave the password out for an open room.');
       const room = newRoom();
-      const key = args.admin_password ? await hostKey(room, args.admin_password) : null;
-      const link = plainLink(meetingLink(cfg.gifosUrl, room, { relay: cfg.relay, verifier: key && key.verifier, townHall: !!args.town_hall }), args.room_password || '');
+      const key = type === 'admin' ? await hostKey(room, hostPw) : null;
+      const link = plainLink(meetingLink(cfg.gifosUrl, room, { relay: cfg.relay, verifier: key && key.verifier }), args.room_password || '');
       const invite = meetingInvite({
         title: args.name, link, start: args.start, end: args.end, timezone: args.timezone,
-        description: args.description, roomPassword: args.room_password, hostName: args.host_name, townHall: !!args.town_hall,
+        description: args.description, roomPassword: args.room_password, hostName: args.host_name,
       });
       assertNotPast(invite);
       const goal = args.instructions === undefined ? '' : cleanInstructions(args.instructions);
@@ -71,11 +90,12 @@ export function registerMeetTools(server, ctx) {
     inputSchema: {
       meeting_id: meetingId,
       room_password: z.string().min(1).max(200).optional().describe('The room password guests type, if the meeting has one.'),
+      host_password: z.string().min(1).max(200).optional().describe('In a room the human host runs (type admin): the host password, so the bot signs in as host on joining. GifOS 0.9.26 keeps a host room closed to guests until a host is there. Used once, never stored or returned.'),
       instructions: instructionsField,
       language: languageField,
       talk: z.boolean().optional().describe(PLAIN + ' true starts the listen and respond loop and hands you each addressed line.'),
     },
-  }, guarded(async ({ meeting_id, room_password, instructions, language, talk: talkOn }) => {
+  }, guarded(async ({ meeting_id, room_password, host_password, instructions, language, talk: talkOn }) => {
     const m = need(meeting_id);
     if (language !== undefined) meetings.update(m.meeting_id, { language });
     setInstructions(m, instructions);
@@ -87,6 +107,7 @@ export function registerMeetTools(server, ctx) {
     if (m.state === 'live') {
       if (talkOn === true) await talk.arm(m.meeting_id);
       const view = withGoal({ ...publicView(meetings.get(m.meeting_id)), note: 'Already live.' });
+      Object.assign(view, await signInHost(meetings.get(m.meeting_id), host_password));
       if (talkOn === true) {
         view.talk = true;
         view.note = 'Already live. ' + PLAIN + ' Call wait_for_speech; it blocks until someone addresses the bot.';
@@ -95,6 +116,7 @@ export function registerMeetTools(server, ctx) {
     }
     const joined = await enterByHand(meetings.get(m.meeting_id), room_password);
     const view = withGoal(publicView(joined));
+    Object.assign(view, await signInHost(joined, host_password));
     if (talkOn === true) {
       await talk.arm(joined.meeting_id);
       view.talk = true;
@@ -109,14 +131,16 @@ export function registerMeetTools(server, ctx) {
     inputSchema: {
       link: z.string().url().max(2048).describe('The GifOS meeting link.'),
       password: z.string().max(200).optional().describe('The room password guests type, if the meeting has one.'),
+      host_password: z.string().min(1).max(200).optional().describe('In a room the human host runs (type admin): the host password, so the bot signs in as host on joining. GifOS 0.9.26 keeps a host room closed to guests until a host is there. Used once, never stored or returned.'),
       topic: z.string().max(200).optional().describe('A name for this meeting in the local list.'),
       instructions: instructionsField,
       language: languageField,
       talk: z.boolean().optional().describe(PLAIN + ' true starts the listen and respond loop and hands you each addressed line.'),
     },
-  }, guarded(async ({ link, password, topic, instructions, language, talk: talkOn }) => {
+  }, guarded(async ({ link, password, host_password, topic, instructions, language, talk: talkOn }) => {
     const { meeting, note } = await joinByLink(link, password, topic, instructions, { language });
     const view = publicView(meeting);
+    Object.assign(view, await signInHost(meeting, host_password));
     const goal = instructionsFor(meeting);
     if (goal) view.instructions = goal;
     if (talkOn === true) {
