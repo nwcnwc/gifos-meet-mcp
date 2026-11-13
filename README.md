@@ -205,6 +205,47 @@ Shared tools (from gifos-mcp-core, the same in gifos-broadcast-mcp):
 The resource `gifos://meeting/{id}/transcript` is the live transcript as newline-delimited JSON; subscribe for
 `notifications/resources/updated`.
 
+## Guard a room (a welcome bot for an open room)
+
+The bot can hold a GifOS room as its **admin**, so nobody else can take the room or change its password, and keep
+the room the way you set it. It needs GifOS 0.9.26 or newer.
+
+- **An open room** (anyone with the link joins) is held by *capture*: the bot loads a GifOS **credentials file** (the
+  subscription GIF from Settings > Subscription, on the $5 or $10 plan, or a staff pass) and takes the room with the
+  page's own "Make me admin". From then on only the bot can set the room's password.
+- **A room with a host** (`mode: "admin"`) is held by signing in with its `host_password`.
+
+The policy:
+
+| field | default | what the bot does |
+|---|---|---|
+| `password` | `null` | `null`: the room has no password, and any password set is cleared at once (with no password GifOS shows no clear video to anyone). A value: the bot sets it and puts it back if it changes. |
+| `blur_all` | `true` | Presses Blur guests when the page offers it to the bot. |
+| `greet` | `true` | A short welcome in chat for newcomers (batched: an open room's chat allows one line per 10 s). A string with `{names}` replaces the text. |
+| `vote_out` | `true` | When the room votes someone out, the bot adds its own vote so the decision holds after the voters leave. |
+| `rank` | `0` | Sibling order (below). |
+| `handler` | none | A module that talks with people (below). |
+
+**Siblings.** Run the same bot (same `GIFOS_BOT_NAME`, `GIFOS_BOT_PASSWORD` and credentials file) on two or more
+computers, with `GIFOS_BOT_SIBLING=1` on all but one and a different `rank` on each. All of them are the room's admin
+at once. The one holding the credentials' meeting ticket leads (greets, backs votes, answers people); when its seat is
+gone, the next one takes over before the hold can lapse, rank 0 first. With a room nobody holds, rank N waits N minutes
+before taking it, so siblings never race.
+
+**Talking with people.** `handler` names a module that exports `onMessage(message, room)`. The lead bot calls it for
+every chat or spoken line a person sends in the room: `message` is `{ text, from, kind, at }`, and `room.sendChat(text)`
+or `room.say(text)` answers. [examples/guard/claude-handler.mjs](examples/guard/claude-handler.mjs) wires it to Claude
+with the Anthropic SDK. Without a handler, you are the brain: `wait_lines` and `send_chat` work in a guarded room like
+in any other.
+
+**Start it** either from your assistant with the `guard_room` tool (`guard_status`, `stop_guard`), or when the server
+starts: set `GIFOS_GUARD_CONFIG` to a file like [examples/guard/welcome-room.json](examples/guard/welcome-room.json)
+(paths in it are relative to the file). [examples/guard/gifos-meet-guard.service](examples/guard/gifos-meet-guard.service)
+runs it as a systemd user service that restarts on failure.
+
+The credentials file is read once and its bytes go only into the bot's own browser. It is never logged, returned or
+sent anywhere else. Keep it `chmod 600`: whoever holds it holds the plan.
+
 ## Meeting archive
 
 Each meeting the bot joins gets a folder that survives restarts: `<home>/meetings/<date>-<room>-<meeting_id>/` with `meta.json`, `recording-001.webm`, `recording-002.webm`, … (one per segment, in order), `transcript.json` and `transcript.md`. The transcript is rewritten every 30 seconds while the meeting is live. On `end_meeting`, `leave_meeting` or a clean shutdown the last segment and transcript are saved; after a crash the folder is marked `interrupted` on the next start and keeps every segment already saved. `list_past_meetings` and `get_past_meeting` find them. Recording defaults on because the Meeting Bot always shows the ⏺ recording indicator to everyone; set `GIFOS_ALWAYS_RECORD=0` where that is not wanted.

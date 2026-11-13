@@ -1,0 +1,23 @@
+# systemd user unit: one guard bot that starts at boot and comes back after any failure.
+#   cp gifos-meet-guard.service ~/.config/systemd/user/ && systemctl --user daemon-reload
+#   loginctl enable-linger "$USER"          # run with nobody logged in
+#   systemctl --user enable --now gifos-meet-guard
+# ~/.config/gifos-guard/env (chmod 600) holds GIFOS_BOT_NAME, GIFOS_BOT_PASSWORD, GIFOS_GUARD_CONFIG and, on every
+# sibling but one, GIFOS_BOT_SIBLING=1. The credentials file named in the guard config is chmod 600 too.
+[Unit]
+Description=GifOS Meet guard bot
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/gifos-guard/env
+WorkingDirectory=%h/gifos-meet-mcp
+ExecStart=/usr/bin/env node bin/gifos-meet-mcp.js --http
+Restart=always
+RestartSec=15
+Nice=5
+
+[Install]
+WantedBy=default.target

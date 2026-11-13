@@ -1,0 +1,15 @@
+{
+  "guards": [
+    {
+      "link": "https://gifos.app/meet/welcome",
+      "mode": "open",
+      "credentials": "/home/you/.config/gifos-guard/staff-pass.gif",
+      "password": null,
+      "blur_all": true,
+      "greet": true,
+      "vote_out": true,
+      "rank": 0,
+      "handler": "./claude-handler.mjs"
+    }
+  ]
+}

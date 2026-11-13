@@ -14,6 +14,7 @@
     "assets",
     "skills",
     "docs/recipes",
+    "examples",
     ".grok-plugin",
     ".mcp.json",
     "README.md",
@@ -44,7 +45,7 @@
   "homepage": "https://github.com/nwcnwc/gifos-meet-mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
-    "gifos-mcp-core": "https://codeload.github.com/nwcnwc/gifos-mcp-core/tar.gz/ce7ce7f8d6b88c0a72ae3b8aead4540fb5442224",
+    "gifos-mcp-core": "https://codeload.github.com/nwcnwc/gifos-mcp-core/tar.gz/62918bd438648b238dbd68a96e4a4b7ca91adc6b",
     "zod": "3.25.76"
   },
   "devDependencies": {
