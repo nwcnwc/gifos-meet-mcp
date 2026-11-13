@@ -222,13 +222,16 @@ The policy:
 | `password` | `null` | `null`: the room has no password, and any password set is cleared at once (with no password GifOS shows no clear video to anyone). A value: the bot sets it and puts it back if it changes. |
 | `blur_all` | `true` | Presses Blur guests when the page offers it to the bot. |
 | `greet` | `true` | A short welcome in chat for newcomers (batched: an open room's chat allows one line per 10 s). A string with `{names}` replaces the text. |
-| `vote_out` | `true` | When the room votes someone out, the bot adds its own vote so the decision holds after the voters leave. |
 | `rank` | `0` | Sibling order (below). |
 | `handler` | none | A module that talks with people (below). |
 
+**Removing someone** is setting a password: everyone inside keeps it and the removed person does not get it. GifOS
+keeps no ban list (a person can change browsers), so a room held with no password removes nobody. To remove people,
+hold the room with a password.
+
 **Siblings.** Run the same bot (same `GIFOS_BOT_NAME`, `GIFOS_BOT_PASSWORD` and credentials file) on two or more
 computers, with `GIFOS_BOT_SIBLING=1` and a different `rank` on each. All of them are the room's admin
-at once. The one holding the credentials' meeting ticket leads (greets, backs votes, answers people); when its seat is
+at once. The one holding the credentials' meeting ticket leads (greets, answers people); when its seat is
 gone, the next one takes over before the hold can lapse, rank 0 first. With a room nobody holds, rank N waits N minutes
 before taking it, so siblings never race.
 

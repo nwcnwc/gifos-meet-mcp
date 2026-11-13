@@ -7,7 +7,6 @@
       "password": null,
       "blur_all": true,
       "greet": true,
-      "vote_out": true,
       "rank": 0,
       "handler": "./claude-handler.mjs"
     }
