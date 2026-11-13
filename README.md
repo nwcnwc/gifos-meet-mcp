@@ -227,7 +227,7 @@ The policy:
 | `handler` | none | A module that talks with people (below). |
 
 **Siblings.** Run the same bot (same `GIFOS_BOT_NAME`, `GIFOS_BOT_PASSWORD` and credentials file) on two or more
-computers, with `GIFOS_BOT_SIBLING=1` on all but one and a different `rank` on each. All of them are the room's admin
+computers, with `GIFOS_BOT_SIBLING=1` and a different `rank` on each. All of them are the room's admin
 at once. The one holding the credentials' meeting ticket leads (greets, backs votes, answers people); when its seat is
 gone, the next one takes over before the hold can lapse, rank 0 first. With a room nobody holds, rank N waits N minutes
 before taking it, so siblings never race.
