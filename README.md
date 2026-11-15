@@ -2,6 +2,13 @@
 
 # gifos-meet-mcp: GifOS meetings for Grok Bot
 
+> **In short, for agents** (the [full briefing](#how-gifos-meetings-work-for-agents) is below):
+> 1. **Rooms** are open (anyone with the link) or admin (a host; the admin password's signature is in the link). Asked for an admin room with no password? Leave `host_password` out: the server makes a strong one, keeps it (0600) and signs the bot in.
+> 2. **Links are capabilities**: share them only with invitees. Never put a password in chat, an invite or a link unless the user asks.
+> 3. **The user's credentials GIF** (subscription or pass) unlocks their plan: hand it over by path (`use_credentials`, `guard_room`). It works in one meeting at a time.
+> 4. **You are the bot's brain**: `wait_lines` to listen, then `send_chat` or `say` to answer.
+> 5. **Something failed?** See the [failure table](#failure-modes).
+
 `gifos-meet-mcp` is an [MCP](https://modelcontextprotocol.io) server that lets Grok Bot (or any MCP client)
 create [GifOS](https://gifos.app) meetings with everything an invite needs, put a note-taking bot in them,
 follow the transcript live and speak through the bot.
@@ -77,11 +84,11 @@ and carries no content. Transcripts, recordings and this server's files stay on 
 for media) is used only when a network blocks direct links: free plans get everything but video over it. Do not
 join rooms, poll or repeat calls without need: every join and capture touches GifOS servers.
 
-**Failure modes.**
+<a id="failure-modes"></a>**Failure modes.**
 
 | The tool says | What it means | Do this |
 |---|---|---|
-| `An admin room needs …` / `keeps no host password` | No admin password given or kept for that room. | For a new room, leave `host_password` out (the server makes one). For someone else's room, ask the user for its admin password. |
+| `keeps no host password` | No admin password was given or kept for that room. | For a new room, leave `host_password` out (the server makes one). For someone else's room, ask the user for its admin password. |
 | The door asks for a password / `locked-out` | The room has a room password. | Ask the user for it; pass it as `password` (join) or `room_password` (start). |
 | `The meeting bot is at capacity.` | `GIFOS_MAX_MEETINGS` rooms are already seated. | End a meeting first, or schedule the join. |
 | `A bot with this name and password is already running…` | Another copy uses the same bot identity. | Give this server its own `GIFOS_MCP_HOME` or bot name, or set `GIFOS_BOT_SIBLING=1` if the copies are siblings on purpose. |
