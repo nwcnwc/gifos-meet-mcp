@@ -86,9 +86,10 @@ stops note-taking and `end_meeting` takes the bot out.
 
 **Holding a room (guard).** `guard_room` keeps the bot in a room as its admin: an open room by capture with a
 credentials GIF that may capture, an admin room by its host password. It keeps the room password as set (none by
-default), blurs guests and greets newcomers. Copies of the same bot on several computers (siblings: same name,
-password and credentials, `GIFOS_BOT_SIBLING=1`, a different `rank`) are all admins at once; one leads (greets,
-answers), and if it dies the next leads with no gap in the hold; a restarted copy comes back as an admin. Removing
+default), blurs guests and greets newcomers. Copies of one guard on several computers (siblings: the same
+credentials or host password, a different `rank`, each with its own name) are all admins at once; one leads (greets,
+answers), and if it dies the next leads with no gap in the hold; a restarted copy comes back as an admin. Siblings
+know each other by that shared key, never by name. Removing
 someone means setting a room password: everyone inside keeps it, the removed person does not get it. GifOS keeps
 no ban list (a person can change browsers), so a room kept with no password removes nobody.
 
@@ -104,7 +105,7 @@ join rooms, poll or repeat calls without need: every join and capture touches Gi
 | `keeps no host password` | No admin password was given or kept for that room. | For a new room, leave `host_password` out (the server makes one). For someone else's room, ask the user for its admin password. |
 | The door asks for a password / `locked-out` | The room has a room password. | Ask the user for it; pass it as `password` (join) or `room_password` (start). |
 | `The meeting bot is at capacity.` | `GIFOS_MAX_MEETINGS` rooms are already seated. | End a meeting first, or schedule the join. |
-| `A bot with this name and password is already running…` | Another copy uses the same bot identity. | Give this server its own `GIFOS_MCP_HOME` or bot name, or set `GIFOS_BOT_SIBLING=1` if the copies are siblings on purpose. |
+| `A bot with this name and password is already running…` | Another copy uses the same bot identity. | Give this server its own `GIFOS_MCP_HOME` or bot name (guard siblings may each have their own), or set `GIFOS_BOT_SIBLING=1` if the copies share one name on purpose. |
 | `This GifOS site does not have that yet` | The site is older than 0.9.26. | Use gifos.app or a 0.9.26 site. |
 | `The room crashed the bot; … again in N min.` | Joining that room took the bot's browser down. | Wait the minutes it names; tell the user. |
 | `warning` in `get_meeting_state`, nobody hears the bot | This network blocks direct links. | TURN carries it when the site offers it; with no plan, sound only. |
@@ -278,7 +279,7 @@ like any person's picture and nowhere else.
 | `GIFOS_MCP_HOME` | `~/.gifos-mcp` | Browser profile, bot credential, `meetings.json`, `schedule.json`, `host-passwords.json`, transcripts, events. |
 | `GIFOS_CREDENTIALS` | none | Path of a GifOS credentials GIF (a subscription file or a pass). Read once at start; the bot joins every meeting with that plan (as `use_credentials`). Keep it `chmod 600`. |
 | `GIFOS_GUARD_CONFIG` | none | A guard config: rooms the bot holds as their admin from the start ([Guard a room](#guard-a-room-a-welcome-bot-for-an-open-room)). |
-| `GIFOS_BOT_SIBLING` | `0` | `1` on every copy of a guard bot that runs on purpose on several computers. |
+| `GIFOS_BOT_SIBLING` | `0` | `1` lets Meeting Bot start beside a running copy with the same bot name and password (guard siblings with their own names do not need it). |
 | `GIFOS_HEADLESS` | `1` | `0` shows the browser windows. |
 | `GIFOS_CHROME` | Chrome, then Edge | A Chrome or Chromium binary to use instead. |
 | `GIFOS_TIMEOUT_MS` | `120000` | How long to wait for GifOS steps such as joining. |
@@ -386,9 +387,12 @@ restarting the service.
 keeps no ban list (a person can change browsers), so a room held with no password removes nobody. To remove people,
 hold the room with a password.
 
-**Siblings.** Run the same bot (same `GIFOS_BOT_NAME`, `GIFOS_BOT_PASSWORD` and credentials file) on two or more
-computers, with `GIFOS_BOT_SIBLING=1` and a different `rank` on each. All of them are the room's admin
-at once. With a subscription file, the one holding its meeting ticket leads (greets, answers people); when its seat
+**Siblings.** Run the same guard (the same credentials file, or the same `host_password` for a room with a host) on
+two or more computers, with a different `rank` on each. Name each one as you like (`GIFOS_BOT_NAME`, for example
+"Welcome Bot 1" and "Welcome Bot 2"). A sibling is known by its key, never by its name: the room's page names a seat
+an admin only after verifying its signed orders against the room's one admin key, so another admin seat beside the
+bot holds the same key. A visitor who calls themselves "Welcome Bot 1" is a visitor (and is greeted). All siblings
+are the room's admin at once. With a subscription file, the one holding its meeting ticket leads (greets, answers people); when its seat
 is gone, the next one takes the ticket back before the hold can lapse, rank 0 first. With a pass (the staff pass),
 every sibling in the room keeps a ticket; the lowest rank present leads, and the next leads as soon as its seat goes. With a room nobody holds, rank N waits N minutes
 before taking it, so siblings never race.
