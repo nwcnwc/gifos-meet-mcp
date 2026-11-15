@@ -10,6 +10,7 @@ import {
 } from 'gifos-mcp-core';
 import { attachTalk, PLAIN } from './talk.js';
 import { MeetingArchive, archiveConfig } from './archive.js';
+import { HostPasswords, strongPassword } from './host-passwords.js';
 
 export function registerMeetTools(server, ctx) {
   const { cfg, meetings, schedule, holdPhase, ok, fail, guarded, need, needLive, enterByHand, joinByLink, instructionsFor, secrets, control, bot } = ctx;
@@ -24,18 +25,23 @@ export function registerMeetTools(server, ctx) {
     const order = schedule.forMeeting(m.meeting_id);
     if (order) holdPhase(order, { instructions: clean });
   }
+  // Admin rooms made here without a given password keep the one this server made (src/host-passwords.js); the bot
+  // signs in with it on every join, and sign_in_as_host finds it too.
+  const hostPasswords = new HostPasswords(cfg.home);
+  ctx.hostPasswordFor = (room) => hostPasswords.get(room);
   const talk = attachTalk(server, ctx);
   const archive = attachArchive(ctx);
   // A host password given on a join signs the bot in as host right away (GifOS
   // 0.9.26 keeps a host room closed until a host is there). It is used once and
   // never echoed: a failure comes back as host_error with the password cut out.
-  async function signInHost(m, pw) {
+  async function signInHost(m, given) {
+    const pw = given || hostPasswords.get(m.room);
     if (!pw) return {};
     try {
       const v = await bot.room(m.session_id, 'host.signin', { password: pw });
       return v && v.bot_is_host ? { bot_is_host: true } : { bot_is_host: false };
     } catch (e) {
-      return { bot_is_host: false, host_error: scrub(String((e && e.message) || e).split(pw).join('***'), secrets()) };
+      return { bot_is_host: false, host_error: scrub(String((e && e.message) || e).split(pw).join('***'), secrets().concat(pw)) };
     }
   }
   // The agenda, apps (Take Turns), the stage and host sign-in (GifOS 0.9.26).
@@ -43,11 +49,11 @@ export function registerMeetTools(server, ctx) {
 
   server.registerTool('create_meeting', {
     title: 'Create a GifOS meeting (link and invite details, no join)',
-    description: 'Mints a GifOS meeting and returns its link plus everything an invite needs: title, start and end with time zone, the join link, description, how guests get in, and who does what, as fields and as ready-to-send text. Nothing joins and nothing is sent: you send the invite with your own mail or calendar, and call start_meeting or schedule_meeting when the bot should be there. type picks the room: open (default; anyone with the link) or admin (a room the human host runs, with host controls; needs host_password). host_password is used for this call only; it is not stored, not logged and not returned. room_password, when given, is the password guests type; it appears in the invite text and never in the link. instructions, when given, are the owner\'s goal for the bot in this meeting; start_meeting and meeting_status hand them back. A start that has already passed (more than 15 minutes ago) or is not a real date is refused.',
+    description: 'Mints a GifOS meeting and returns its link plus everything an invite needs: title, start and end with time zone, the join link, description, how guests get in, and who does what, as fields and as ready-to-send text. Nothing joins and nothing is sent: you send the invite with your own mail or calendar, and call start_meeting or schedule_meeting when the bot should be there. type picks the room: open (default; anyone with the link) or admin (a room with a host and host controls). AN ADMIN ROOM CANNOT BE MADE WITHOUT AN ADMIN (HOST) PASSWORD: its signature goes into the link and is what makes the room an admin room. If the user gives one, pass it as host_password: it is used for this call only, never stored, logged or returned. If the user asks for an admin room and gives NO password, do not invent one and do not ask: leave host_password out and this server makes a strong random one, keeps it in its own 0600 file (the answer\'s host_password.kept_in), signs the bot in with it on start_meeting and join_meeting, and never shows it. Tell the user it was made and where it is kept; call get_host_password only if the user asks to see it. room_password is a different thing: the password guests type to get in (who may enter); it appears in the invite text and never in the link. instructions, when given, are the owner\'s goal for the bot in this meeting; start_meeting and meeting_status hand them back. A start that has already passed (more than 15 minutes ago) or is not a real date is refused.',
     inputSchema: {
       name: z.string().min(1).max(200).describe('The meeting title.'),
-      type: z.enum(['open', 'admin']).optional().describe('open (default): anyone with the link joins. admin: a room the human host runs (host controls: room password, who may present, the agenda); needs host_password.'),
-      host_password: z.string().min(1).max(200).optional().describe('The human host\'s password for an admin room. Used for this call only; never stored or returned.'),
+      type: z.enum(['open', 'admin']).optional().describe('open (default): anyone with the link joins. admin: a room with a host (host controls: room password, who may present, the agenda). An admin room always has a host password: the user\'s (host_password), or one this server makes and keeps when host_password is left out.'),
+      host_password: z.string().min(1).max(200).optional().describe('The admin (host) password the USER gave for an admin room. Used for this call only; never stored or returned. Leave it out when the user gave none: the server makes a strong one and keeps it.'),
       admin_password: z.string().min(1).max(200).optional().describe('Older name of host_password; same meaning.'),
       start: z.string().max(64).optional().describe('Start time: ISO with an offset, or a local time such as 2026-10-20T17:00 read in timezone.'),
       end: z.string().max(64).optional().describe('End time, same forms. Default start plus one hour.'),
@@ -58,11 +64,12 @@ export function registerMeetTools(server, ctx) {
       instructions: instructionsField,
     },
   }, async (args) => {
-    const hostPw = args.host_password || args.admin_password || '';
-    const hidden = () => secrets().concat(hostPw);
+    let hostPw = args.host_password || args.admin_password || '';
+    const hidden = () => secrets().concat(hostPw ? [hostPw] : []);
     try {
       const type = args.type || (hostPw ? 'admin' : 'open');
-      if (type === 'admin' && !hostPw) throw new Error('An admin room needs host_password (the human host keeps it).');
+      const made = type === 'admin' && !hostPw;
+      if (made) hostPw = strongPassword();
       if (type === 'open' && hostPw) throw new Error('host_password makes an admin room; pass type admin, or leave the password out for an open room.');
       const room = newRoom();
       const key = type === 'admin' ? await hostKey(room, hostPw) : null;
@@ -74,12 +81,25 @@ export function registerMeetTools(server, ctx) {
       assertNotPast(invite);
       const goal = args.instructions === undefined ? '' : cleanInstructions(args.instructions);
       const m = meetings.add({ topic: args.name, room, link, start_time: invite.start ? invite.start.iso : null, ...(goal ? { instructions: goal } : {}) });
-      const body = JSON.stringify({ meeting_id: m.meeting_id, link, host_runs_room: !!key, invite, ...(goal ? { instructions: goal } : {}) }, null, 2);
+      if (made) hostPasswords.keep(room, hostPw, { meeting_id: m.meeting_id, name: String(args.name).slice(0, 200) });
+      const kept = made ? { host_password: { made: true, kept_in: hostPasswords.file, note: 'No host password was given, so this server made a strong random one and keeps it in kept_in (mode 0600). It is not shown here. The bot signs in as host with it on start_meeting and join_meeting. Tell the user where it is kept; call get_host_password only if the user asks to see it.' } } : {};
+      const body = JSON.stringify({ meeting_id: m.meeting_id, link, host_runs_room: !!key, invite, ...kept, ...(goal ? { instructions: goal } : {}) }, null, 2);
       return { content: [{ type: 'text', text: scrub(body, hidden()) }] };
     } catch (e) {
       return { isError: true, content: [{ type: 'text', text: scrub(String((e && e.message) || e), hidden()) }] };
     }
   });
+
+  server.registerTool('get_host_password', {
+    title: 'Show the host password this server made',
+    description: 'Returns the admin (host) password this server made and keeps for an admin room created with no host_password. Call it ONLY when the user explicitly asks to see the password; never put it in chat, an invite or a link otherwise. A password the user gave is never kept, so it cannot be read back.',
+    inputSchema: { meeting_id: meetingId },
+  }, guarded(async ({ meeting_id }) => {
+    const m = need(meeting_id);
+    const pw = hostPasswords.get(m.room);
+    if (!pw) throw new Error('This server keeps no host password for that meeting (it is an open room, or the user gave the password).');
+    return { content: [{ type: 'text', text: JSON.stringify({ meeting_id: m.meeting_id, host_password: pw, kept_in: hostPasswords.file }, null, 2) }] };
+  }));
 
   const languageField = z.string().min(2).max(12).regex(/^(auto|[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})?)$/).optional()
     .describe('The language people speak, for the transcript: auto (default, Whisper detects it) or a code such as ru, es or pt-BR.');
@@ -90,7 +110,7 @@ export function registerMeetTools(server, ctx) {
     inputSchema: {
       meeting_id: meetingId,
       room_password: z.string().min(1).max(200).optional().describe('The room password guests type, if the meeting has one.'),
-      host_password: z.string().min(1).max(200).optional().describe('In a room the human host runs (type admin): the host password, so the bot signs in as host on joining. GifOS 0.9.26 keeps a host room closed to guests until a host is there. Used once, never stored or returned.'),
+      host_password: z.string().min(1).max(200).optional().describe('In an admin room: the host password, so the bot signs in as host on joining (GifOS 0.9.26 keeps a host room closed to guests until a host is there). Used once, never stored or returned. Leave it out for an admin room this server made: it signs in with the password it keeps.'),
       instructions: instructionsField,
       language: languageField,
       talk: z.boolean().optional().describe(PLAIN + ' true starts the listen and respond loop and hands you each addressed line.'),
@@ -131,7 +151,7 @@ export function registerMeetTools(server, ctx) {
     inputSchema: {
       link: z.string().url().max(2048).describe('The GifOS meeting link.'),
       password: z.string().max(200).optional().describe('The room password guests type, if the meeting has one.'),
-      host_password: z.string().min(1).max(200).optional().describe('In a room the human host runs (type admin): the host password, so the bot signs in as host on joining. GifOS 0.9.26 keeps a host room closed to guests until a host is there. Used once, never stored or returned.'),
+      host_password: z.string().min(1).max(200).optional().describe('In an admin room: the host password, so the bot signs in as host on joining (GifOS 0.9.26 keeps a host room closed to guests until a host is there). Used once, never stored or returned. Leave it out for an admin room this server made: it signs in with the password it keeps.'),
       topic: z.string().max(200).optional().describe('A name for this meeting in the local list.'),
       instructions: instructionsField,
       language: languageField,

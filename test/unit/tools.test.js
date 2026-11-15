@@ -67,7 +67,7 @@ beforeEach(async () => {
 test('lists every tool with an input schema', async () => {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ['cancel_schedule', 'capacity_status', 'create_meeting', 'end_meeting', 'get_agenda', 'get_meeting_state', 'get_past_meeting', 'get_recording', 'get_transcript', 'guard_room', 'guard_status',
+  assert.deepEqual(names, ['cancel_schedule', 'capacity_status', 'create_meeting', 'end_meeting', 'get_agenda', 'get_host_password', 'get_meeting_state', 'get_past_meeting', 'get_recording', 'get_transcript', 'guard_room', 'guard_status',
     'import_schedule', 'join_meeting', 'leave_meeting', 'list_apps', 'list_meetings', 'list_past_meetings', 'list_schedule', 'meeting_status', 'meetings_report',
     'mute', 'next_agenda_item', 'raise_hand', 'run_app', 'say', 'schedule_meeting', 'send_chat', 'set_agenda', 'set_bot_profile', 'set_camera', 'set_mic', 'share_content',
     'sign_in_as_host', 'snapshot', 'stage', 'start_meeting', 'start_recording', 'status', 'stop_app', 'stop_guard', 'stop_recording', 'tail_events', 'tail_lines', 'tail_transcript', 'take_turns', 'unmute', 'update_schedule', 'use_credentials', 'wait_for_speech', 'wait_lines']);
@@ -121,9 +121,27 @@ test('create_meeting returns every invite detail, without joining and without se
   assert.equal(adm.host_runs_room, true);
   assert.match(adm.link, /\/meet\/[0-9a-z]{24}\/[0-9a-f]{24}$/);
   assert.equal(JSON.stringify(adm).includes(ADMIN), false, 'the host password is never returned');
-  const noPw = await call('create_meeting', { name: 'Board', type: 'admin' });
-  assert.equal(noPw.isError, true);
-  assert.match(noPw.content[0].text, /host_password/);
+  // An admin room with no password given: the server makes a strong one, keeps it 0600, never returns it here.
+  const noPw = json(await call('create_meeting', { name: 'Board', type: 'admin', room_password: 'test password' }));
+  assert.equal(noPw.host_runs_room, true);
+  assert.match(noPw.link, /\/meet\/[0-9a-z]{24}\/[0-9a-f]{24}$/);
+  assert.equal(noPw.host_password.made, true);
+  assert.equal(noPw.host_password.kept_in, path.join(home, 'host-passwords.json'));
+  assert.equal(fs.statSync(noPw.host_password.kept_in).mode & 0o777, 0o600);
+  const kept = Object.values(JSON.parse(fs.readFileSync(noPw.host_password.kept_in, 'utf8')))[0].password;
+  assert.ok(kept.length >= 24);
+  assert.equal(JSON.stringify(noPw).includes(kept), false, 'the made password is not in the answer');
+  assert.equal(noPw.link.includes('test password'), false, 'the room password is never in the link');
+  // The bot signs in with it on start (no password passed), and the start's answer never shows it.
+  bot.room = async (sid, op, a) => { bot.calls.push(['room', op, a && a.password]); return op === 'host.signin' ? { bot_is_host: a.password === kept } : {}; };
+  const started = await call('start_meeting', { meeting_id: noPw.meeting_id, room_password: 'test password' });
+  assert.equal(json(started).bot_is_host, true);
+  assert.equal(text(started).includes(kept), false);
+  // Read back only through get_host_password.
+  const shown = json(await call('get_host_password', { meeting_id: noPw.meeting_id }));
+  assert.equal(shown.host_password, kept);
+  const given = await call('get_host_password', { meeting_id: adm.meeting_id });
+  assert.equal(given.isError, true, 'a password the user gave is never kept');
   const mixed = await call('create_meeting', { name: 'Open', type: 'open', host_password: ADMIN });
   assert.equal(mixed.isError, true);
   assert.equal(mixed.content[0].text.includes(ADMIN), false);

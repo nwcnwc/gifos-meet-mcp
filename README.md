@@ -102,6 +102,74 @@ join does not wait. **It must be running at meeting time** for a scheduled join:
 `--http [port]` listens on `127.0.0.1` only, checks the `Host` header, and requires `Authorization: Bearer
 <token>` when `GIFOS_MCP_HTTP_TOKEN` is set.
 
+## For agents: read this first
+
+Rules an agent driving this server follows. The tool descriptions say the same.
+
+1. **An admin room always has an admin (host) password.** Its signature goes into the room link; that is what makes
+   the room an admin room. There is no admin room without one.
+   - The user gave one: pass it as `host_password`. It is used for that call only and never stored or returned.
+   - The user gave none: **do not invent one, do not ask.** Call `create_meeting` with `type: "admin"` and no
+     `host_password`. The server makes a strong random password (144 bits), keeps it in
+     `<GIFOS_MCP_HOME>/host-passwords.json` (mode 0600), and answers `host_password: { made: true, kept_in }` without
+     the password. Tell the user it was made and where it is kept. The bot signs in with it on `start_meeting`,
+     `join_meeting` and `sign_in_as_host`. Show it only if the user asks: `get_host_password`.
+2. **The room password is a different thing.** `room_password` is who may ENTER (guests type it). It goes in the
+   invite text, never in the link, and it can be set on an open room or an admin room.
+3. **Credentials GIFs are secrets.** A GifOS credentials GIF (a subscription file from Settings > Subscription, or a
+   pass) is the plan itself: whoever holds the file holds the plan. Hand it to the server by path or base64
+   (`use_credentials`, `guard_room`'s `credentials`, or `GIFOS_CREDENTIALS`); never paste its bytes in chat, and never
+   ask the user to. The server reads it once, puts it only into the bot's own browser, and never logs or returns it.
+4. **A plan works in one meeting at a time.** A subscription or pass joining a second meeting moves there; the first
+   loses it within minutes.
+
+## Recipes for agents
+
+Exact tool calls. Ids and links come from the previous answer.
+
+**A free admin room named "test" with room password "test password"** (no admin password given):
+
+```json
+{ "tool": "create_meeting", "arguments": { "name": "test", "type": "admin", "room_password": "test password" } }
+```
+
+The answer has `link`, `invite` (send its `text` yourself) and `host_password: { "made": true, "kept_in": "…/host-passwords.json" }`.
+Tell the user: "I made a strong admin password for the room and kept it in `<kept_in>`; ask me if you want to see it."
+To put the bot in the room as its host:
+
+```json
+{ "tool": "start_meeting", "arguments": { "meeting_id": "<meeting_id>", "room_password": "test password" } }
+```
+
+The answer says `bot_is_host: true`. A free admin room lets in 5 people; a $2 plan 20; $5 and $10 no limit.
+
+**Hold an open room with a credentials GIF** (a $5/$10 subscription file or a staff pass, on this computer):
+
+```json
+{ "tool": "guard_room", "arguments": { "link": "https://gifos.app/meet/<room>", "credentials": "/path/to/credentials.gif" } }
+```
+
+The bot joins, takes the room ("Make me admin"), keeps it with no password and greets newcomers. `guard_status` shows
+its role (`lead`, `coadmin`, `taking`, `held-by-other`); `stop_guard` stops it.
+
+**Use your pass or subscription in any meeting** (the bot joins with your plan: a paid room plan, TURN on blocked
+networks):
+
+```json
+{ "tool": "use_credentials", "arguments": { "path": "/path/to/credentials.gif" } }
+```
+
+or `{ "gif_b64": "<the file, base64>" }` when the file is not on this computer. Then join as usual.
+
+**Join someone else's meeting:**
+
+```json
+{ "tool": "join_meeting", "arguments": { "link": "https://gifos.app/meet/<room>", "password": "<room password, if any>" } }
+```
+
+If they want the bot to run the room as host, add `"host_password": "<their admin password>"` (used once, never kept).
+Then `wait_lines` / `get_transcript` to follow it, `send_chat` or `say` to speak, `leave_meeting` to go.
+
 ## Endpoints, downloads and credentials
 
 | What | Where | When | Size |
@@ -135,7 +203,10 @@ like any person's picture and nowhere else.
 | `GIFOS_BOT_PASSWORD` | generated | The bot's password (the secret half). A `bot.json` that cannot be read is kept as `bot.json.bad-<ms>` and a new pair is generated. |
 | `GIFOS_BOT_PICTURE` | none | Path to the bot's picture: a GIF, PNG, JPEG or WebP file, at most 256 KB. Rooms show it on the bot's tile like anyone's picture. |
 | `GIFOS_STT_APP` | `offline-stt-whisper` | The store app for speech to text. `none` turns transcription off. |
-| `GIFOS_MCP_HOME` | `~/.gifos-mcp` | Browser profile, bot credential, `meetings.json`, `schedule.json`, transcripts, events. |
+| `GIFOS_MCP_HOME` | `~/.gifos-mcp` | Browser profile, bot credential, `meetings.json`, `schedule.json`, `host-passwords.json`, transcripts, events. |
+| `GIFOS_CREDENTIALS` | none | Path of a GifOS credentials GIF (a subscription file or a pass). Read once at start; the bot joins every meeting with that plan (as `use_credentials`). Keep it `chmod 600`. |
+| `GIFOS_GUARD_CONFIG` | none | A guard config: rooms the bot holds as their admin from the start ([Guard a room](#guard-a-room-a-welcome-bot-for-an-open-room)). |
+| `GIFOS_BOT_SIBLING` | `0` | `1` on every copy of a guard bot that runs on purpose on several computers. |
 | `GIFOS_HEADLESS` | `1` | `0` shows the browser windows. |
 | `GIFOS_CHROME` | Chrome, then Edge | A Chrome or Chromium binary to use instead. |
 | `GIFOS_TIMEOUT_MS` | `120000` | How long to wait for GifOS steps such as joining. |
@@ -162,8 +233,10 @@ Meeting tools (this server):
 
 | Tool | Arguments | Returns |
 |---|---|---|
-| `create_meeting` | `name`, `type?` (`open` or `admin`), `host_password?`, `start?`, `end?`, `timezone?`, `description?`, `room_password?`, `host_name?` | `{ meeting_id, link, host_runs_room, invite }`. Nothing joins, nothing is sent. `invite` has `title`, `start`/`end` (`{iso, timezone, local}`), `join_url`, `description`, `admit`, `roles`, `text`, `calendar`. `type: admin` with `host_password` (the human host's; `admin_password` is the older name) makes a room they run, with host controls; the password is used for this call only and never stored or returned. The room password is in the invite text, never in the link. GifOS 0.9.26 has no town hall. |
-| `start_meeting` | `meeting_id`, `room_password?`, `talk?`, `language?` | The bot joins now and starts transcribing. `language` is what people speak: `auto` (default; Whisper detects it) or a code such as `ru`, `es` or `pt-BR`. One bot browser holds one setting, so rooms joined at the same time share the latest; `GIFOS_CC_LANG` sets the default. Turning the microphone on and transcribing does not make the bot answer. talk:true does. |
+| `create_meeting` | `name`, `type?` (`open` or `admin`), `host_password?`, `start?`, `end?`, `timezone?`, `description?`, `room_password?`, `host_name?` | `{ meeting_id, link, host_runs_room, invite, host_password? }`. Nothing joins, nothing is sent. `invite` has `title`, `start`/`end` (`{iso, timezone, local}`), `join_url`, `description`, `admit`, `roles`, `text`, `calendar`. `type: admin` makes a room with a host: with the user's `host_password` (`admin_password` is the older name), used for this call only and never stored or returned; with none, the server makes a strong one, keeps it in `host-passwords.json` (0600) and answers `host_password: { made, kept_in }` without it (see [For agents](#for-agents-read-this-first)). The room password is in the invite text, never in the link. GifOS 0.9.26 has no town hall. |
+| `get_host_password` | `meeting_id` | The host password the server made for that admin room. Only when the user asks to see it. |
+| `use_credentials` | `path` or `gif_b64` | The bot joins every meeting with the user's credentials GIF (subscription or pass). Read once, kept in memory, put only into the bot's browser; never logged or returned. |
+| `start_meeting` | `meeting_id`, `room_password?`, `host_password?`, `talk?`, `language?` | The bot joins now and starts transcribing; in an admin room it signs in as host (with the given password, or the one the server made). `language` is what people speak: `auto` (default; Whisper detects it) or a code such as `ru`, `es` or `pt-BR`. One bot browser holds one setting, so rooms joined at the same time share the latest; `GIFOS_CC_LANG` sets the default. Turning the microphone on and transcribing does not make the bot answer. talk:true does. |
 | `join_meeting` | `link`, `password?`, `topic?`, `instructions?`, `talk?`, `language?` (as on `start_meeting`) | The bot joins someone else's GifOS meeting now. `instructions` (optional, plain text, at most 4000 characters) is the owner's goal for this meeting, returned by `meeting_status`; without it the bot only transcribes. Turning the microphone on and transcribing does not make the bot answer. talk:true does: the bot answers lines addressed to it, and `wait_for_speech` returns each of those lines. With talk left off, the bot does not answer. |
 | `wait_for_speech` | `meeting_id`, `timeout_ms?` | Blocks until a line addressed to the bot arrives in a meeting joined with `talk:true`. Turning the microphone on and transcribing does not make the bot answer. talk:true does. |
 | `raise_hand`, `set_mic`, `set_camera` | `meeting_id`, `on` | Meet Bot's hand, microphone and camera, or the gap when the app lacks the method. `set_mic` does not make the bot answer. |
@@ -176,7 +249,7 @@ room with a host, the host-only ones need `sign_in_as_host` first:
 
 | Tool | Arguments | Returns |
 |---|---|---|
-| `sign_in_as_host` | `meeting_id`, `host_password` | Signs the bot in as the host (Admin > Sign in). The password is used once, never stored or returned; the bot's browser forgets the room's host key when it leaves. |
+| `sign_in_as_host` | `meeting_id`, `host_password?` | Signs the bot in as the host (Admin > Sign in). A given password is used once, never stored or returned; omitted, the one the server made for that room. The bot's browser forgets the room's host key when it leaves. |
 | `set_agenda` | `meeting_id`, `items` (`[{title, minutes?}]`, up to 40), `append?` | Shares the agenda in the meeting's Agenda tab, with timekeeping. Refused if one exists unless `append`. |
 | `next_agenda_item` | `meeting_id` | Moves the agenda on (the first call starts item 1) and restarts its clock. |
 | `get_agenda` | `meeting_id` | The items, `current_item`, `time_left` (`m:ss`, or `+m:ss` when over). |
@@ -231,8 +304,9 @@ hold the room with a password.
 
 **Siblings.** Run the same bot (same `GIFOS_BOT_NAME`, `GIFOS_BOT_PASSWORD` and credentials file) on two or more
 computers, with `GIFOS_BOT_SIBLING=1` and a different `rank` on each. All of them are the room's admin
-at once. The one holding the credentials' meeting ticket leads (greets, answers people); when its seat is
-gone, the next one takes over before the hold can lapse, rank 0 first. With a room nobody holds, rank N waits N minutes
+at once. With a subscription file, the one holding its meeting ticket leads (greets, answers people); when its seat
+is gone, the next one takes the ticket back before the hold can lapse, rank 0 first. With a pass (the staff pass),
+every sibling in the room keeps a ticket; the lowest rank present leads, and the next leads as soon as its seat goes. With a room nobody holds, rank N waits N minutes
 before taking it, so siblings never race.
 
 **Talking with people.** `handler` names a module that exports `onMessage(message, room)`. The lead bot calls it for
