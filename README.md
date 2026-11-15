@@ -9,33 +9,34 @@
 > 4. **You are the bot's brain**: `wait_lines` to listen, then `send_chat` or `say` to answer.
 > 5. **Something failed?** See the [failure table](#failure-modes).
 
-**Defaults for plain requests.** Don't ask what these answer:
+**What people say, and what to do.** Map requests by meaning, in any language ("una llamada", "ein Meeting", "uma
+reunião" are all "a call"); answer in the user's language. Don't ask what these defaults answer. "Room password" =
+who may enter; "admin password" = the host's, kept private by the server.
 
-- "a call", "a meeting", "a test call": a **free admin room**. Call `create_meeting` with `type: "admin"` and no
-  `host_password`; the server makes the admin password and keeps it private. If the user gave no name, pick a short
-  one ("Test call").
-- "with a password": a **room password** (who may enter). Use the user's, or make a readable one yourself (three
-  words, such as `maple-river-lamp`) and pass it as `room_password`. The user asked for it, so it goes in the join
-  info you send them.
-- "send me info to join": the **join link**, the **room password** (if any), and one line on how to join: "Open the
-  link in a browser, type the password when asked." The admin password is never in the join info.
-- "start" the call: `start_meeting` puts the bot in it as the host, so the room is open for guests now.
-
-`gifos-meet-mcp` is an [MCP](https://modelcontextprotocol.io) server that lets Grok Bot (or any MCP client)
-create [GifOS](https://gifos.app) meetings with everything an invite needs, put a note-taking bot in them,
-follow the transcript live and speak through the bot.
-
-It runs **on your own computer** (self-run only; there is no hosted MCP URL). It starts a headless Chromium
-running GifOS, installs the **Meeting Bot** app from the GifOS app store, and drives it. Meetings stay peer to
-peer between the people in them. Transcripts stay on your computer. No GifOS account, no API key, no model.
-
-The shared parts (the bot, transcripts, Kokoro, links and invite details) are
-[gifos-mcp-core](https://github.com/nwcnwc/gifos-mcp-core), pinned to an exact commit. Its sibling for
-broadcasts is [gifos-broadcast-mcp](https://github.com/nwcnwc/gifos-broadcast-mcp).
-
-> **Works with GifOS 0.9.25 (live on gifos.app) and 0.9.26.** The meeting tools need the Meeting Bot store app
-> (control contract version 2). The agenda, app (Take Turns) and stage tools need GifOS 0.9.26; on an older
-> site they answer that the site does not have them yet.
+| The user says | Do this |
+|---|---|
+| "a call", "a meeting", "set up a zoom / hangout / video chat / conference", "a quick call", "a test call" | `create_meeting` `{name, type: "admin"}` with no `host_password` (a free admin room; the server makes the admin password). Name: the user's, or a short one ("Test call"). Then `start_meeting` if they want it now. |
+| "with a password", "a private call", "a call nobody else can get into" | Also `room_password`: the user's, or a readable one you make (three words: `maple-river-lamp`). It goes in the join info. |
+| "send me info to join", "send me the link" | The join link + the room password (if any) + one line: "Open the link in a browser, type the password when asked." Or the `invite.text` from `create_meeting`. Never the admin password. |
+| "a meeting for my team at 3pm tomorrow" | `create_meeting` with `start` (e.g. `2026-11-16T15:00`) and `timezone` (the user's if known, else this computer's local zone, e.g. from `date +%Z`), then `schedule_meeting` `{link, room_password, start}` so the bot joins on time. Send `invite.text`; this server sends nothing itself. |
+| "a recurring weekly standup" | As above, plus `recurrence` on `schedule_meeting` (`FREQ=WEEKLY;BYDAY=MO`). |
+| "make it public", "anyone can join" | An open room: `create_meeting` `{name}` (no `type`). Anyone with the link joins; no door limit. |
+| "a big call", "a webinar", "30 people" | An open room (no limit), or an admin room with the user's $5/$10 plan (`use_credentials`). A free admin room lets in 5 people, $2 lets in 20. Say so. |
+| "it says the room is full" | A free admin room is at 5 (or $2 at 20). Use an open room, or the user's $5/$10 plan (`use_credentials`, then rejoin). |
+| "lock it", "change the password" | Set the room password with `guard_room` `{link, mode: "admin", password: "<new>"}` (a room this server made needs no `host_password`), then send the new password to the people who should have it. Open rooms: anyone inside may set one unless someone holds the room. |
+| "kick someone out", "remove X" | No remove tool here, and GifOS keeps no ban list. In an admin room the host taps Remove on that person's tile: the room password changes and everyone else gets the new one. Tell the user how, or lock the room for newcomers (row above). |
+| "who's in the call?" | `get_meeting_state` `{meeting_id}`. |
+| "take notes", "transcribe", "what did they say?", "summarize the meeting" | The bot transcribes from the moment it joins. `get_transcript` (or `wait_lines` while live), then you write the summary. |
+| "record it" | Recording is on by default (`GIFOS_ALWAYS_RECORD=1`; everyone sees ⏺ recording); else `start_recording`. `get_recording` saves the file. Mention the indicator. |
+| "send me the notes" | Put them in your reply, or send them with the user's own mail connector; this server sends nothing. |
+| "join my meeting at <link>" | `join_meeting` `{link, password}` (ask for the room password only if the door asks). |
+| "join and say hi", "introduce yourself", "answer questions" | `join_meeting`, then `send_chat` / `say` with your words. To answer: `wait_lines` and reply, or `talk: true` with `wait_for_speech`. Open-room chat: one line per 10 s. |
+| "be quiet", "stop listening", "leave" | Quiet: just don't `say` (talk is off unless you turned it on). Stop listening: `mute`. Leave: `leave_meeting`. |
+| "end the meeting", "close the room" | `end_meeting` takes the bot out; others stay. An admin room closes 5 minutes after the last host leaves; an open room lasts while anyone is in it. |
+| "use my subscription", "here's my GifOS file", "I have a pass" | `use_credentials` `{path}` (or `gif_b64`). Never paste the file's bytes into chat. One meeting at a time. |
+| "why can't they see video?" | With no room password, everyone stays blurred: set one. On a network that blocks direct links, the free plan carries sound but not video over TURN; a paid plan carries video. |
+| "make me the host", "give me admin" | `get_host_password` `{meeting_id}` (only now, since they asked); they open the link and use Admin > Sign in. For someone else's room, it's that room's admin password. |
+| "share my screen" | A person's own action: the Share screen button (Alt+S) in their meeting. In an admin room the host may first need to allow guests to share. The bot cannot share a screen for them. |
 
 ## How GifOS meetings work, for agents
 
