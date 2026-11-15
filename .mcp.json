@@ -9,7 +9,7 @@
         "exec",
         "-y",
         "--",
-        "github:nwcnwc/gifos-meet-mcp#5766b03b30edaf7bb6393de29fb399f5df4c6065"
+        "github:nwcnwc/gifos-meet-mcp#30c2fe85a92bbe53bd5f84cfd2aa86901c2617bd"
       ],
       "env": {
         "npm_config_ignore_scripts": "true",
