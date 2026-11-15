@@ -70,7 +70,7 @@ test('lists every tool with an input schema', async () => {
   assert.deepEqual(names, ['cancel_schedule', 'capacity_status', 'create_meeting', 'end_meeting', 'get_agenda', 'get_meeting_state', 'get_past_meeting', 'get_recording', 'get_transcript', 'guard_room', 'guard_status',
     'import_schedule', 'join_meeting', 'leave_meeting', 'list_apps', 'list_meetings', 'list_past_meetings', 'list_schedule', 'meeting_status', 'meetings_report',
     'mute', 'next_agenda_item', 'raise_hand', 'run_app', 'say', 'schedule_meeting', 'send_chat', 'set_agenda', 'set_bot_profile', 'set_camera', 'set_mic', 'share_content',
-    'sign_in_as_host', 'snapshot', 'stage', 'start_meeting', 'start_recording', 'status', 'stop_app', 'stop_guard', 'stop_recording', 'tail_events', 'tail_lines', 'tail_transcript', 'take_turns', 'unmute', 'update_schedule', 'wait_for_speech', 'wait_lines']);
+    'sign_in_as_host', 'snapshot', 'stage', 'start_meeting', 'start_recording', 'status', 'stop_app', 'stop_guard', 'stop_recording', 'tail_events', 'tail_lines', 'tail_transcript', 'take_turns', 'unmute', 'update_schedule', 'use_credentials', 'wait_for_speech', 'wait_lines']);
   for (const t of tools) {
     assert.equal(t.inputSchema.type, 'object', t.name);
     assert.ok(t.description && t.description.length > 20, t.name + ' has a description');
