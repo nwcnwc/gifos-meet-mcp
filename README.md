@@ -9,6 +9,18 @@
 > 4. **You are the bot's brain**: `wait_lines` to listen, then `send_chat` or `say` to answer.
 > 5. **Something failed?** See the [failure table](#failure-modes).
 
+**Defaults for plain requests.** Don't ask what these answer:
+
+- "a call", "a meeting", "a test call": a **free admin room**. Call `create_meeting` with `type: "admin"` and no
+  `host_password`; the server makes the admin password and keeps it private. If the user gave no name, pick a short
+  one ("Test call").
+- "with a password": a **room password** (who may enter). Use the user's, or make a readable one yourself (three
+  words, such as `maple-river-lamp`) and pass it as `room_password`. The user asked for it, so it goes in the join
+  info you send them.
+- "send me info to join": the **join link**, the **room password** (if any), and one line on how to join: "Open the
+  link in a browser, type the password when asked." The admin password is never in the join info.
+- "start" the call: `start_meeting` puts the bot in it as the host, so the room is open for guests now.
+
 `gifos-meet-mcp` is an [MCP](https://modelcontextprotocol.io) server that lets Grok Bot (or any MCP client)
 create [GifOS](https://gifos.app) meetings with everything an invite needs, put a note-taking bot in them,
 follow the transcript live and speak through the bot.
