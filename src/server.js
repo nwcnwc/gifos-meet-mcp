@@ -3,9 +3,10 @@ import { createContext, createServer as composeServer } from 'gifos-mcp-core';
 import { registerMeetTools } from './tools.js';
 import { INSTRUCTIONS } from './briefing.js';
 import { normalizeLinksInTools } from './links.js';
+import { createRequire } from 'node:module';
 
 export const NAME = 'gifos-meet-mcp';
-export const VERSION = '0.5.3';
+export const VERSION = createRequire(import.meta.url)('../package.json').version;   // the banner names the build that runs
 export const HTTP_PORT = 19520;
 export const README = 'https://github.com/nwcnwc/gifos-meet-mcp#readme';
 
