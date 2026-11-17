@@ -14,6 +14,7 @@ export function strongPassword() { return crypto.randomBytes(18).toString('base6
 export class HostPasswords {
   constructor(home) { this.file = path.join(home, 'host-passwords.json'); }
   all() { return readPrivate(this.file, 'host passwords start empty', (v) => !!v && typeof v === 'object' && !Array.isArray(v)) || {}; }
+  values() { return Object.values(this.all()).map((r) => r && r.password).filter((p) => typeof p === 'string' && p); }
   get(room) { const r = room ? this.all()[room] : null; return r && typeof r.password === 'string' ? r.password : ''; }
   keep(room, password, meta = {}) {
     const all = this.all();

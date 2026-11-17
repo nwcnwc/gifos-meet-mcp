@@ -29,6 +29,8 @@ export function registerMeetTools(server, ctx) {
   // signs in with it on every join, and sign_in_as_host finds it too.
   const hostPasswords = new HostPasswords(cfg.home);
   ctx.hostPasswordFor = (room) => hostPasswords.get(room);
+  // Kept host passwords are masked in every reply, event and journal (get_host_password alone shows one, on request).
+  if (ctx.holdSecret) ctx.holdSecret(() => hostPasswords.values());
   const talk = attachTalk(server, ctx);
   const archive = attachArchive(ctx);
   // A host password given on a join signs the bot in as host right away (GifOS
@@ -37,6 +39,7 @@ export function registerMeetTools(server, ctx) {
   async function signInHost(m, given) {
     const pw = given || hostPasswords.get(m.room);
     if (!pw) return {};
+    if (given && ctx.holdSecret) ctx.holdSecret(given);
     try {
       const v = await bot.room(m.session_id, 'host.signin', { password: pw });
       return v && v.bot_is_host ? { bot_is_host: true } : { bot_is_host: false };
@@ -53,13 +56,13 @@ export function registerMeetTools(server, ctx) {
     inputSchema: {
       name: z.string().min(1).max(200).describe('The meeting title.'),
       type: z.enum(['open', 'admin']).optional().describe('open (default): anyone with the link joins. admin: a room with a host (host controls: room password, who may present, the agenda). An admin room always has a host password: the user\'s (host_password), or one this server makes and keeps when host_password is left out.'),
-      host_password: z.string().min(1).max(200).optional().describe('The admin (host) password the USER gave for an admin room. Used for this call only; never stored or returned. Leave it out when the user gave none: the server makes a strong one and keeps it.'),
-      admin_password: z.string().min(1).max(200).optional().describe('Older name of host_password; same meaning.'),
+      host_password: z.string().min(1).max(200).optional().describe('The admin (host) password the USER gave for an admin room. Used for this call only; never stored or returned. Leave it out when the user gave none: the server makes a strong one and keeps it. Keep it in a secrets vault or other safe storage, never in chat, notes or logs, and read it from there into this argument.'),
+      admin_password: z.string().min(1).max(200).optional().describe('Older name of host_password; same meaning. Keep it in a secrets vault or other safe storage, never in chat, notes or logs, and read it from there into this argument.'),
       start: z.string().max(64).optional().describe('Start time: ISO with an offset, or a local time such as 2026-10-20T17:00 read in timezone.'),
       end: z.string().max(64).optional().describe('End time, same forms. Default start plus one hour.'),
       timezone: z.string().max(80).optional().describe('IANA time zone, for example America/Los_Angeles. Default UTC.'),
       description: z.string().max(4000).optional().describe('Agenda or notes for the invite.'),
-      room_password: z.string().min(1).max(200).optional().describe('The password guests type to get in. Put it in the invite; it is never part of the link.'),
+      room_password: z.string().min(1).max(200).optional().describe('The password guests type to get in. Put it in the invite; it is never part of the link. Keep it in a secrets vault or other safe storage, never in chat, notes or logs, and read it from there into this argument.'),
       host_name: z.string().max(80).optional().describe('Who hosts, for the invite text.'),
       instructions: instructionsField,
     },
@@ -92,7 +95,7 @@ export function registerMeetTools(server, ctx) {
 
   server.registerTool('get_host_password', {
     title: 'Show the host password this server made',
-    description: 'Returns the admin (host) password this server made and keeps for an admin room created with no host_password. Call it ONLY when the user explicitly asks to see the password; never put it in chat, an invite or a link otherwise. A password the user gave is never kept, so it cannot be read back.',
+    description: 'Returns the admin (host) password this server made and keeps for an admin room created with no host_password. Keep what it returns in a secrets vault or other safe storage, never in chat, notes or logs. Call it ONLY when the user explicitly asks to see the password; never put it in chat, an invite or a link otherwise. A password the user gave is never kept, so it cannot be read back.',
     inputSchema: { meeting_id: meetingId },
   }, guarded(async ({ meeting_id }) => {
     const m = need(meeting_id);
@@ -109,8 +112,8 @@ export function registerMeetTools(server, ctx) {
     description: 'The headless Meeting Bot joins the meeting made with create_meeting now and starts transcribing. Everyone sees it as a tile labelled 🤖 bot. Pass the room password if the invite has one. ' + PLAIN + ' Pass talk:true to start the listen and respond loop. With talk left off, the bot does not answer. instructions, when given, set the owner\'s goal for this meeting (as on create_meeting); meeting_status hands them back.',
     inputSchema: {
       meeting_id: meetingId,
-      room_password: z.string().min(1).max(200).optional().describe('The room password guests type, if the meeting has one.'),
-      host_password: z.string().min(1).max(200).optional().describe('In an admin room: the host password, so the bot signs in as host on joining (GifOS 0.9.26 keeps a host room closed to guests until a host is there). Used once, never stored or returned. Leave it out for an admin room this server made: it signs in with the password it keeps.'),
+      room_password: z.string().min(1).max(200).optional().describe('The room password guests type, if the meeting has one. Keep it in a secrets vault or other safe storage, never in chat, notes or logs, and read it from there into this argument.'),
+      host_password: z.string().min(1).max(200).optional().describe('In an admin room: the host password, so the bot signs in as host on joining (GifOS 0.9.26 keeps a host room closed to guests until a host is there). Used once, never stored or returned. Leave it out for an admin room this server made: it signs in with the password it keeps. Keep it in a secrets vault or other safe storage, never in chat, notes or logs, and read it from there into this argument.'),
       instructions: instructionsField,
       language: languageField,
       talk: z.boolean().optional().describe(PLAIN + ' true starts the listen and respond loop and hands you each addressed line.'),
@@ -150,8 +153,8 @@ export function registerMeetTools(server, ctx) {
     description: 'The Meeting Bot joins a GifOS meeting now and starts transcribing. A join at a later time is schedule_meeting, not this tool. The room password is kept on the schedule when one is passed, and is never returned. instructions, when given, are the owner\'s goal for this meeting, handed back to you by meeting_status; without them the bot only transcribes. ' + PLAIN + ' Pass talk:true to start the listen and respond loop. With talk left off, the bot does not answer.',
     inputSchema: {
       link: z.string().url().max(2048).describe('The GifOS meeting link.'),
-      password: z.string().max(200).optional().describe('The room password guests type, if the meeting has one.'),
-      host_password: z.string().min(1).max(200).optional().describe('In an admin room: the host password, so the bot signs in as host on joining (GifOS 0.9.26 keeps a host room closed to guests until a host is there). Used once, never stored or returned. Leave it out for an admin room this server made: it signs in with the password it keeps.'),
+      password: z.string().max(200).optional().describe('The room password guests type, if the meeting has one. Keep it in a secrets vault or other safe storage, never in chat, notes or logs, and read it from there into this argument.'),
+      host_password: z.string().min(1).max(200).optional().describe('In an admin room: the host password, so the bot signs in as host on joining (GifOS 0.9.26 keeps a host room closed to guests until a host is there). Used once, never stored or returned. Leave it out for an admin room this server made: it signs in with the password it keeps. Keep it in a secrets vault or other safe storage, never in chat, notes or logs, and read it from there into this argument.'),
       topic: z.string().max(200).optional().describe('A name for this meeting in the local list.'),
       instructions: instructionsField,
       language: languageField,

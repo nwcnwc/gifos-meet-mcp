@@ -6,7 +6,7 @@ MCP server for hosting and running bot-led video calls on **GifOS Meet**, free b
 
 > **In short, for agents** (the [full briefing](#how-gifos-meetings-work-for-agents) is below):
 > 1. **Rooms** are open (anyone with the link) or admin (a host; the admin password's signature is in the link). Asked for an admin room with no password? Leave `host_password` out: the server makes a strong one, keeps it (0600) and signs the bot in.
-> 2. **Links are capabilities**: share them only with invitees. Never put a password in chat, an invite or a link unless the user asks.
+> 2. **Links are capabilities**: share them only with invitees. Never put a password in chat, an invite or a link unless the user asks, and keep every password (admin/host and room) in a secrets vault, never in prompts, notes or logs.
 > 3. **The user's credentials GIF** (subscription or pass) unlocks their plan: hand it over by path (`use_credentials`, `guard_room`). It works in one meeting at a time.
 > 4. **You are the bot's brain**: `wait_lines` to listen, then `send_chat` or `say` to answer.
 > 5. **Something failed?** See the [failure table](#failure-modes).
@@ -65,6 +65,11 @@ Read this before calling any tool. The tool descriptions and the server's MCP in
 invites, through the user's own mail or calendar (this server sends nothing). An admin room's link carries only
 the verifier, never the admin password. Never put any password (admin, room, the bot's own) in chat, an invite or
 a link unless the user asks for that.
+
+**Passwords are secrets** (the admin/host password and every room password): the moment you have one, keep it in a
+secrets vault or other safe storage, never in chat, memory, notes, files, shell commands or logs, and read it from
+there only into the one tool argument that needs it. This server masks every host password it holds as `[redacted]`
+in what it returns and logs.
 
 **Credentials.**
 
