@@ -80,3 +80,45 @@ test('create_meeting takes the screen words and the old ones for type, and refus
     for (const t of ['public hosted', 'private open-floor', 'zoom']) assert.equal((await make(t)).isError, true, t + ' is refused');
   } finally { await done(); }
 });
+
+// The role is "host" wherever a person or an agent reads it; "admin" stays only as the API value (type / mode "admin",
+// the admin_password parameter name) and in code.
+const API_ADMIN = /\b(?:type|mode)[:=]?\s*["'`]?admin\b["'`]?|["'`]admin["'`]|\badmin_password\b|\badmin:|\bfor admin\b|\bopen \/ admin\b|\bopen or admin\b|`admin`/gi;
+const sayAdmin = (t) => /\badmins?\b|\bco-admins?\b|Make me admin/i.test(String(t).replace(API_ADMIN, ' '));
+function literals(file) {
+  const out = [];
+  fs.readFileSync(path.join(ROOT, 'src', file), 'utf8').split('\n').forEach((ln, i) => {
+    const t = ln.trim();
+    if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return;
+    for (const m of ln.replace(/\s\/\/\s.*$/, '').matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g)) {
+      const v = m[1] ?? m[2] ?? m[3];
+      if (/\s/.test(v)) out.push([file + ':' + (i + 1), v]);
+    }
+  });
+  return out;
+}
+
+test('the role is "host" in every tool text, message, the briefing and the README; admin only as the API value', async () => {
+  const { client, done } = await open();
+  const { tools } = await client.listTools();
+  await done();
+  for (const [where, text] of textsOf(tools)) assert.equal(sayAdmin(text), false, where + ' says admin: ' + text.slice(0, 300));
+  for (const f of ['tools.js', 'briefing.js']) for (const [where, v] of literals(f)) {
+    const m = String(v).replace(API_ADMIN, ' ').match(/.{0,70}(?:\badmins?\b|Make me admin).{0,70}/i);
+    assert.equal(m, null, where + ' says admin: ' + (m && m[0]));
+  }
+  fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8').split('\n').forEach((l, i) => {
+    const m = l.replace(API_ADMIN, ' ').match(/.{0,70}(?:\badmins?\b|Make me admin).{0,70}/i);
+    assert.equal(m, null, 'README.md:' + (i + 1) + ' says admin: ' + (m && m[0]));
+  });
+  assert.ok(INSTRUCTIONS.includes('Make me host') && /host password/.test(INSTRUCTIONS), 'the briefing names the host role');
+});
+
+test('create_meeting takes "host" for type admin', async () => {
+  const { client, done } = await open();
+  try {
+    const r = await client.callTool({ name: 'create_meeting', arguments: { name: 'Kind host', type: 'host' } });
+    assert.ok(!r.isError, r.content[0].text);
+    assert.equal(JSON.parse(r.content[0].text).host_runs_room, true);
+  } finally { await done(); }
+});

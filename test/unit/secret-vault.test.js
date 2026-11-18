@@ -86,8 +86,8 @@ test("a host password given on a join is masked from then on", async () => {
 });
 
 test("the briefing and every password field tell the agent to keep passwords in a secrets vault", async () => {
-  assert.match(client.getInstructions() || "", /keep every password \(admin\/host and room\) in a secrets vault/);
-  assert.match(client.getInstructions() || "", /Passwords are secrets \(the admin\/host password and every room password\)/);
+  assert.match(client.getInstructions() || "", /keep every password \(host and room\) in a secrets vault/);
+  assert.match(client.getInstructions() || "", /Passwords are secrets \(the host password and every room password\)/);
   const { tools } = await client.listTools();
   const missing = [];
   for (const t of tools) for (const [k, v] of Object.entries((t.inputSchema && t.inputSchema.properties) || {})) {
@@ -96,6 +96,6 @@ test("the briefing and every password field tell the agent to keep passwords in 
   assert.deepEqual(missing, []);
   assert.match(tools.find((t) => t.name === "get_host_password").description, /secrets vault/);
   const readme = fs.readFileSync(new URL("../../README.md", import.meta.url), "utf8");
-  assert.match(readme, /keep every password \(admin\/host and room\) in a secrets vault/);
+  assert.match(readme, /keep every password \(host and room\) in a secrets vault/);
   assert.match(readme, /\*\*Passwords are secrets\*\*/);
 });
