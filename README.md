@@ -200,7 +200,7 @@ This is the exact command the plugin's `.mcp.json` runs (stdio):
 
 ```sh
 npm_config_ignore_scripts=true ONNXRUNTIME_NODE_INSTALL_CUDA=skip \
-  npx -y npm@11.6.2 exec -y -- github:nwcnwc/gifos-meet-mcp#28b9f4a35548bc8eb5c544118b72525aa3bb312a
+  npx -y npm@11.6.2 exec -y -- github:nwcnwc/gifos-meet-mcp#83ca18595aa5f24582d3e5690fb89eb79896ad6d
 ```
 
 It speaks MCP over stdio, so on its own it waits for a client. `npm@11.6.2 exec` is there because the npm in
@@ -237,7 +237,7 @@ By hand, add a local (stdio) MCP server:
     "gifos-meet": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "npm@11.6.2", "exec", "-y", "--", "github:nwcnwc/gifos-meet-mcp#28b9f4a35548bc8eb5c544118b72525aa3bb312a"],
+      "args": ["-y", "npm@11.6.2", "exec", "-y", "--", "github:nwcnwc/gifos-meet-mcp#83ca18595aa5f24582d3e5690fb89eb79896ad6d"],
       "env": { "npm_config_ignore_scripts": "true", "ONNXRUNTIME_NODE_INSTALL_CUDA": "skip", "GIFOS_URL": "https://gifos.app" }
     }
   }
