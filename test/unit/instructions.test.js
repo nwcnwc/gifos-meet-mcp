@@ -71,7 +71,7 @@ test('join_meeting with instructions: returned, kept 0600, and handed back by me
 
 test('join_meeting without instructions is unchanged: no field, transcribe only', async () => {
   const m = json(await call('join_meeting', { link: LINK }));
-  assert.deepEqual(Object.keys(m).sort(), ['created_at', 'ended_at', 'link', 'meeting_id', 'muted', 'start_time', 'started_at', 'state', 'thinking', 'topic', 'transcribing']);
+  assert.deepEqual(Object.keys(m).filter((k) => k !== 'reach').sort(), ['created_at', 'ended_at', 'link', 'meeting_id', 'muted', 'start_time', 'started_at', 'state', 'thinking', 'topic', 'transcribing']);
   assert.equal(m.reach, 'direct', 'core JOIN.1: a join says how the bot is reached');
   assert.equal('instructions' in json(await call('meeting_status', { meeting_id: m.meeting_id })), false);
   assert.deepEqual(bot.calls.map((c) => c[0]), ['join', 'transcribe']);
