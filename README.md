@@ -23,8 +23,8 @@ who may enter; "host password" = the host's, kept private by the server.
 | "a meeting for my team at 3pm tomorrow" | `create_meeting` with `start` (e.g. `2026-11-16T15:00`) and `timezone` (the user's if known, else this computer's local zone, e.g. from `date +%Z`), then `schedule_meeting` `{link, room_password, start}` so the bot joins on time. Send `invite.text`; this server sends nothing itself. |
 | "a recurring weekly standup" | As above, plus `recurrence` on `schedule_meeting` (`FREQ=WEEKLY;BYDAY=MO`). |
 | "make it public", "an open-floor meeting", "anyone can join" | A public open-floor meeting: `create_meeting` `{name}` (no `type`, or `type: "open"`). Anyone with the link joins; no door limit. |
-| "a big call", "a webinar", "30 people" | A public open-floor meeting (no limit), or a private meeting with the user's $5/$10 plan (`use_credentials`). A free private meeting lets in 5 people, $2 lets in 20. Say so. |
-| "it says the room is full" | A free private meeting is at 5 (or $2 at 20). Use a public open-floor meeting, or the user's $5/$10 plan (`use_credentials`, then rejoin). |
+| "a big call", "a webinar", "30 people" | A public open-floor meeting (no limit), or a private meeting with the user's $5+ plan (`use_credentials`). A free private meeting lets in 5 people, $2 lets in 20. Say so. |
+| "it says the room is full" | A free private meeting is at 5 (or $2 at 20). Use a public open-floor meeting, or the user's $5+ plan (`use_credentials`, then rejoin). |
 | "lock it", "change the password" | Set the room password with `guard_room` `{link, mode: "admin", password: "<new>"}` (a meeting this server made needs no `host_password`), then send the new password to the people who should have it. In a public open-floor meeting anyone inside may set one unless someone holds the room. |
 | "kick someone out", "remove X" | No remove tool here, and GifOS keeps no ban list. In a private meeting the host taps Remove on that person's tile: the room password changes and everyone else gets the new one. Tell the user how, or lock the room for newcomers (row above). |
 | "who's in the call?" | `get_meeting_state` `{meeting_id}`. |
@@ -48,13 +48,13 @@ Read this before calling any tool. The tool descriptions and the server's MCP in
 screens name them by their buttons, the tools by `type` / `mode` (which also take the screen words: `public` or
 `open floor` for `open`, `private` or `hosted` for `admin`):
 
-- A **public open-floor meeting** (`open`; "Start a public open-floor meeting"): anyone with the link joins. It has no host and no door limit. Anyone inside may set its room
-  password while nobody holds it. A subscriber on the $5 or $10 plan, or a staff pass, can *take charge of* it
-  ("Make me host"); from then on only the captor sets its password, until the captor's ticket stops renewing.
+- A **public open-floor meeting** (`open`; "Start a public open-floor meeting"): anyone with the link joins. It has no door limit. Anyone inside may set its room
+  password. A subscriber on a $5+ plan, or a staff pass, can take over as host while they're connected
+  ("Make me host"); from then on only that host sets its password, until they disconnect (the URL does not change).
 - A **private meeting** (`admin`; "Host a private meeting"; a private, hosted meeting): it has a host. What makes it one is the **host password**: its signature goes into
   the link (`/meet/<room>/<verifier>`). There is no private meeting without one. Only the host sets the room password,
   lets people on the stage, runs the agenda and blurs guests. The door lets in 5 people on the free plan, 20 on $2,
-  no limit on $5 and $10. The room closes 5 minutes after the last host leaves.
+  no limit on $5+. The room closes 5 minutes after the last host leaves.
   - The user gave a host password: pass it as `host_password`. It is used for that call only, never kept.
   - The user gave none: **do not invent one and do not ask.** Leave `host_password` out. The server makes a strong
     random one, keeps it in `<GIFOS_MCP_HOME>/host-passwords.json` (mode 0600) and signs the bot in with it. Tell the
@@ -141,7 +141,7 @@ To put the bot in the room as its host:
 
 The answer says `bot_is_host: true`. A free private meeting lets in 5 people; a $2 plan 20; $5 and $10 no limit.
 
-**Hold a public open-floor meeting with a credentials GIF** (a $5/$10 subscription file or a staff pass, on this computer):
+**Hold a public open-floor meeting with a credentials GIF** (a $5+ subscription file or a staff pass, on this computer):
 
 ```json
 { "tool": "guard_room", "arguments": { "link": "https://gifos.app/meet/<room>", "credentials": "/path/to/credentials.gif" } }
@@ -366,7 +366,7 @@ The bot can **hold** a GifOS meeting (as the host of a private meeting, or by ta
 the room the way you set it. It needs GifOS 0.9.26 or newer.
 
 - **A public open-floor meeting** (`mode: "open"`; anyone with the link joins) is held by *capture*: the bot loads a GifOS **credentials file** (the
-  subscription GIF from Settings > Subscription, on the $5 or $10 plan, or a staff pass) and takes the room with the
+  subscription GIF from Settings > Subscription, on a $5+ plan, or a staff pass) and takes the room with the
   page's own "Make me host". From then on only the bot can set the room's password.
 - **A private meeting** (`mode: "admin"`; it has a host) is held by signing in with its `host_password`.
 
