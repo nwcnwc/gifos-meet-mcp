@@ -72,7 +72,8 @@ test('join_meeting with instructions: returned, kept 0600, and handed back by me
 test('join_meeting without instructions is unchanged: no field, transcribe only', async () => {
   const m = json(await call('join_meeting', { link: LINK }));
   assert.deepEqual(Object.keys(m).filter((k) => k !== 'reach').sort(), ['created_at', 'ended_at', 'link', 'meeting_id', 'muted', 'start_time', 'started_at', 'state', 'thinking', 'topic', 'transcribing']);
-  assert.equal(m.reach, 'direct', 'core JOIN.1: a join says how the bot is reached');
+  // core JOIN.1 (gifos-mcp-core c180cc0+): reach is only reported when the bot is reachable over TURN alone.
+  assert.equal(m.reach, undefined, 'core JOIN.1: a directly reachable bot carries no reach field');
   assert.equal('instructions' in json(await call('meeting_status', { meeting_id: m.meeting_id })), false);
   assert.deepEqual(bot.calls.map((c) => c[0]), ['join', 'transcribe']);
 });
