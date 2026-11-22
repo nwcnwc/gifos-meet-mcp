@@ -289,6 +289,7 @@ like any person's picture and nowhere else.
 | `GIFOS_CREDENTIALS` | none | Path of a GifOS credentials GIF (a subscription file or a pass). Read once at start; the bot joins every meeting with that plan (as `use_credentials`). Keep it `chmod 600`. |
 | `GIFOS_GUARD_CONFIG` | none | A guard config: meetings the bot holds from the start ([Guard a room](#guard-a-room-a-welcome-bot-for-a-public-open-floor-meeting)). |
 | `GIFOS_BOT_SIBLING` | `0` | `1` lets Meeting Bot start beside a running copy with the same bot name and password (guard siblings with their own names do not need it). |
+| `GIFOS_BOT_MODE` | (browser) | `core` runs the bot with no browser: each meeting is the meeting's own core running in this process (through `@gifos-app/agent`, loaded from the meeting's site, WebRTC data channels). It reads people, chat and the captions people share, posts chat and raises a hand. It has no voice, camera, recording, own speech-to-text or room actions yet; those tools answer that they need the browser bot. No Chrome or Kokoro is needed. |
 | `GIFOS_HEADLESS` | `1` | `0` shows the browser windows. |
 | `GIFOS_CHROME` | Chrome, then Edge | A Chrome or Chromium binary to use instead. |
 | `GIFOS_TIMEOUT_MS` | `120000` | How long to wait for GifOS steps such as joining. |
