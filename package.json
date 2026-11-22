@@ -29,7 +29,8 @@
     "test:e2e": "node test/e2e/run.js",
     "test:e2e:whisper": "node test/e2e/whisper.js",
     "test:e2e:stage-b": "node test/e2e/stage-b.js",
-    "test:e2e:load": "node test/e2e/load.js"
+    "test:e2e:load": "node test/e2e/load.js",
+    "test:e2e:core": "node test/e2e/core.js"
   },
   "keywords": [
     "mcp",
@@ -46,7 +47,7 @@
   "homepage": "https://github.com/nwcnwc/gifos-meet-mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
-    "gifos-mcp-core": "https://codeload.github.com/nwcnwc/gifos-mcp-core/tar.gz/03827a98d745ab5969dd7c2b42d6d43f7b1551d7",
+    "gifos-mcp-core": "https://codeload.github.com/nwcnwc/gifos-mcp-core/tar.gz/9d4dd10107fc7b69e10dae8edc2737a10b9c4f74",
     "zod": "3.25.76"
   },
   "devDependencies": {
