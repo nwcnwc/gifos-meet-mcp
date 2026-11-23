@@ -47,7 +47,7 @@
   "homepage": "https://github.com/nwcnwc/gifos-meet-mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
-    "gifos-mcp-core": "https://codeload.github.com/nwcnwc/gifos-mcp-core/tar.gz/cc3b5a327aaba1c246fce0e18cf978c2f006c2eb",
+    "gifos-mcp-core": "https://codeload.github.com/nwcnwc/gifos-mcp-core/tar.gz/7899b6ac398128e4e551227ac69f333f60335526",
     "zod": "3.25.76"
   },
   "devDependencies": {
