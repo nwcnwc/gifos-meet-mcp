@@ -414,6 +414,12 @@ or `room.say(text)` answers. [examples/guard/claude-handler.mjs](examples/guard/
 with the Anthropic SDK. Without a handler, you are the brain: `wait_lines` and `send_chat` work in a guarded room like
 in any other.
 
+**Your own interactive bot.** The GifOS bot kit (`@gifos-app/agent/kit`, recipe in
+[gifos-agent docs/bot-kit.md](https://github.com/nwcnwc/gifos-agent/blob/main/docs/bot-kit.md)) runs a bot from one
+config file: any LLM or none, any voice or none, an animated avatar, your own prompt and limits.
+[examples/welcome-guide](examples/welcome-guide) is our GifOS welcome guide built with it, and
+[kit-handler.mjs](examples/welcome-guide/kit-handler.mjs) gives a guard the same brain.
+
 **Start it** either from your assistant with the `guard_room` tool (`guard_status`, `stop_guard`), or when the server
 starts: set `GIFOS_GUARD_CONFIG` to a file like [examples/guard/welcome-room.json](examples/guard/welcome-room.json)
 (paths in it are relative to the file). [examples/guard/gifos-meet-guard.service](examples/guard/gifos-meet-guard.service)
