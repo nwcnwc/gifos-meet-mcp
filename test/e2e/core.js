@@ -5,6 +5,9 @@
 //
 // Needs: GIFOS_APP_DIR (a gifos-app checkout that serves js/core/node.js), RELAY_SCRIPT (a local relay script) or
 // E2E_RELAY, Playwright's Chromium for Alice. E2E_SITE_PORT / E2E_RELAY_PORT pick the ports.
+// The bot runs only a signed core: a release site is signed by GifOS; a local copy is signed with a test key
+// (the GifOS signer's sign-core tool, --key <test jwk>) and GIFOS_CORE_KEYS=<that key's public half> is set here.
+// Against an unsigned site, join_meeting is refused with the SDK's sentence (that is the refusal check).
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
