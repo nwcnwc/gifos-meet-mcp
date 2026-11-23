@@ -1,5 +1,5 @@
-// The two kinds of meeting, in the words the GifOS screens use: "Start a public open-floor meeting" is type open,
-// "Host a private meeting" (a private, hosted meeting) is type admin. The API values stay open / admin. "public" and
+// The two kinds of meeting, in the words the GifOS screens use: the lobby tab "Open" (a public open-floor meeting) is
+// type open, the lobby tab "Host" ("Host a private meeting" on the Invite sheet; a private, hosted meeting) is type admin. The API values stay open / admin. "public" and
 // "open-floor" are one kind, "private" and "hosted" the other, and there are only two kinds: no tool text, briefing
 // or README line may put a word of one beside a word of the other. create_meeting takes the screen words too.
 import { test } from 'node:test';
@@ -47,7 +47,9 @@ test('create_meeting names both kinds the way the screens do; type keeps the val
   assert.deepEqual(type.enum, ['open', 'admin'], 'the API values are unchanged');
   assert.match(type.description, /open[^.]*public open-floor meeting/);
   assert.match(type.description, /admin[^.]*private meeting/);
-  assert.match(c.description, /Start a public open-floor meeting/);
+  assert.match(c.description, /lobby tab "Open"/);
+  assert.match(c.description, /lobby tab "Host"/);
+  assert.doesNotMatch(c.description, /Start a public open-floor meeting/);
   assert.match(c.description, /Host a private meeting/);
 });
 
@@ -58,7 +60,7 @@ test('no tool text, briefing paragraph or README line uses an old room name or m
   for (const [where, text] of textsOf(tools)) clean(where, text);
   INSTRUCTIONS.split('\n\n').forEach((p, i) => clean('briefing paragraph ' + (i + 1), p));
   fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8').split('\n').forEach((l, i) => clean('README.md:' + (i + 1), l));
-  for (const w of ['public open-floor meeting', 'Start a public open-floor meeting', 'private meeting', 'Host a private meeting', 'type admin', 'type open']) assert.ok(INSTRUCTIONS.includes(w), 'the briefing says ' + w);
+  for (const w of ['public open-floor meeting', 'lobby tab "Open"', 'private meeting', 'lobby tab "Host"', 'Host a private meeting', 'type admin', 'type open']) assert.ok(INSTRUCTIONS.includes(w), 'the briefing says ' + w);
   assert.ok(['a public hosted meeting', 'private open-floor', 'public or private meetings'].every((s) => MIX.test(s)));
   assert.ok(['a private, hosted meeting', 'a public open-floor meeting'].every((s) => !MIX.test(s)));
 });

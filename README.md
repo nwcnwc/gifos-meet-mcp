@@ -5,9 +5,9 @@
 MCP server for hosting and running bot-led video calls on **GifOS Meet**, free browser meetings at **https://meet.gifos.app** (the same as https://gifos.app/meet). Links in either form work. Ask your agent "set up meet.gifos.app for me" and point it here.
 
 > **In short, for agents** (the [full briefing](#how-gifos-meetings-work-for-agents) is below):
-> 1. **Two kinds of meeting**, named as on the GifOS screens: a **public open-floor meeting** (`type: "open"`, "Start a public open-floor meeting": anyone with the link) or a **private meeting** (`type: "admin"`, "Host a private meeting": a host; the host password's signature is in the link). Asked for a private meeting with no password? Leave `host_password` out: the server makes a strong one, keeps it (0600) and signs the bot in.
+> 1. **Two kinds of meeting**, named as on the GifOS screens: a **public open-floor meeting** (`type: "open"`, the lobby's "Open" tab: anyone with the link) or a **private meeting** (`type: "admin"`, the lobby's "Host" tab, "Host a private meeting" on the Invite sheet: a host; the host password's signature is in the link). Asked for a private meeting with no password? Leave `host_password` out: the server makes a strong one, keeps it (0600) and signs the bot in.
 > 2. **Links are capabilities**: share them only with invitees. Never put a password in chat, an invite or a link unless the user asks, and keep every password (host and room) in a secrets vault, never in prompts, notes or logs.
-> 3. **The user's credentials GIF** (subscription or pass) unlocks their plan: hand it over by path (`use_credentials`, `guard_room`). It works in one meeting at a time.
+> 3. **The user's credentials GIF** (subscription or pass) unlocks their plan: hand it over by path (`use_credentials`, `guard_room`). It works in as many meetings at once as the plan covers: one on most plans and the pass, 5 to 10,000 on the business plans.
 > 4. **You are the bot's brain**: `wait_lines` to listen, then `send_chat` or `say` to answer.
 > 5. **Something failed?** See the [failure table](#failure-modes).
 
@@ -35,7 +35,7 @@ who may enter; "host password" = the host's, kept private by the server.
 | "join and say hi", "introduce yourself", "answer questions" | `join_meeting`, then `send_chat` / `say` with your words. To answer: `wait_lines` and reply, or `talk: true` with `wait_for_speech`. In a public open-floor meeting the chat allows one line per 10 s. |
 | "be quiet", "stop listening", "leave" | Quiet: just don't `say` (talk is off unless you turned it on). Stop listening: `mute`. Leave: `leave_meeting`. |
 | "end the meeting", "close the room" | `end_meeting` takes the bot out; others stay. A private meeting closes 5 minutes after the last host leaves; a public open-floor meeting lasts while anyone is in it. |
-| "use my subscription", "here's my GifOS file", "I have a pass" | `use_credentials` `{path}` (or `gif_b64`). Never paste the file's bytes into chat. One meeting at a time. |
+| "use my subscription", "here's my GifOS file", "I have a pass" | `use_credentials` `{path}` (or `gif_b64`). Never paste the file's bytes into chat. One meeting at a time, or as many as a business plan covers. |
 | "why can't they see video?" | With no room password, everyone stays blurred: set one. On a network that blocks direct links, the free plan carries sound but not video over TURN; a paid plan carries video. |
 | "make me the host" (or "admin") | `get_host_password` `{meeting_id}` (only now, since they asked); they open the link and use Host > Sign in as host. For someone else's room, it's that room's host password. |
 | "share my screen" | A person's own action: the Share screen button (Alt+S) in their meeting. In a private meeting the host may first need to allow guests to share. The bot cannot share a screen for them. |
@@ -48,10 +48,10 @@ Read this before calling any tool. The tool descriptions and the server's MCP in
 screens name them by their buttons, the tools by `type` / `mode` (which also take the screen words: `public` or
 `open floor` for `open`, `private` or `hosted` for `admin`):
 
-- A **public open-floor meeting** (`open`; "Start a public open-floor meeting"): anyone with the link joins. It has no door limit. Anyone inside may set its room
+- A **public open-floor meeting** (`open`; the lobby's "Open" tab): anyone with the link joins. It has no door limit. Anyone inside may set its room
   password. A subscriber on a $5+ plan, or a staff pass, can take over as host while they're connected
   ("Make me host"); from then on only that host sets its password, until they disconnect (the URL does not change).
-- A **private meeting** (`admin`; "Host a private meeting"; a private, hosted meeting): it has a host. What makes it one is the **host password**: its signature goes into
+- A **private meeting** (`admin`; the lobby's "Host" tab, "Host a private meeting" on the Invite sheet; a private, hosted meeting): it has a host. What makes it one is the **host password**: its signature goes into
   the link (`/meet/<room>/<verifier>`). There is no private meeting without one. Only the host sets the room password,
   lets people on the stage, runs the agenda and blurs guests. The door lets in 5 people on the free plan, 20 on $2,
   no limit on $5+. The room closes 5 minutes after the last host leaves.
@@ -77,12 +77,14 @@ in what it returns and logs.
 
 - The **bot's own** name and password (`GIFOS_BOT_NAME`, `GIFOS_BOT_PASSWORD`, else a stored pair in `bot.json`)
   are its identity: whoever has the pair can command the bot. Never show them.
-- The **user's credentials GIF** is a GifOS subscription file (Settings > Subscription) or a pass. It is the plan
+- The **user's credentials GIF** is a GifOS subscription file (in a meeting: More > Subscription > Download subscription file) or a pass. It is the plan
   itself: bigger private meetings, video over TURN on networks that block direct links, and capturing a public open-floor meeting on $5, $10
   or a staff pass. Hand it over by path or base64 with `use_credentials` (any meeting), `credentials` on
   `guard_room`, or `GIFOS_CREDENTIALS` at start. It is read once, put only into the bot's own browser, and never
-  logged or returned. Never paste its bytes in chat or ask the user to. A plan works in **one meeting at a time**:
-  joining a second meeting moves it there, and the first loses it within minutes.
+  logged or returned. Never paste its bytes in chat or ask the user to. A plan works in **as many meetings at once
+  as it covers**: one on the pass, Room 20, Unlimited and Streamer; 5 on Family business, up to 10,000 on Enterprise
+  (every plan: https://gifos.app/subscription). Joining one more moves it there, and the oldest loses it within
+  minutes; on Small business and larger plans the extra meeting runs on the free plan instead.
 
 **The bot's role.** The bot joins as a tile labelled 🤖 bot, transcribes, and says or writes only what you give it
 (`say`, `send_chat`). You are its brain: follow the room with `wait_lines` (blocks until a new line) or
@@ -118,8 +120,8 @@ join rooms, poll or repeat calls without need: every join and capture touches Gi
 | `This GifOS site does not have that yet` | The site is older than 0.9.26. | Use gifos.app or a 0.9.26 site. |
 | `The room crashed the bot; … again in N min.` | Joining that room took the bot's browser down. | Wait the minutes it names; tell the user. |
 | `warning` in `get_meeting_state`, nobody hears the bot | This network blocks direct links. | TURN carries it when the site offers it; with no plan, sound only. |
-| `in use in another meeting` / guard role `held-by-other` | The credentials' plan moved to another meeting, or someone else holds the public open-floor meeting. | Use one meeting per plan; the guard takes the room back when the other hold lapses. |
-| `That is not a GIF` / `not a GifOS subscription` | The credentials file is wrong. | Ask the user to export it again from Settings > Subscription. |
+| `in use in another meeting` / guard role `held-by-other` | The credentials' plan moved to another meeting, or someone else holds the public open-floor meeting. | Stay within the plan's meetings at once; the guard takes the room back when the other hold lapses. |
+| `That is not a GIF` / `not a GifOS subscription` | The credentials file is wrong. | Ask the user to export it again (in a meeting: More > Subscription > Download subscription file). |
 
 ## Recipes for agents
 
@@ -139,7 +141,7 @@ To put the bot in the room as its host:
 { "tool": "start_meeting", "arguments": { "meeting_id": "<meeting_id>", "room_password": "test password" } }
 ```
 
-The answer says `bot_is_host: true`. A free private meeting lets in 5 people; a $2 plan 20; $5 and $10 no limit.
+The answer says `bot_is_host: true`. A free private meeting lets in 5 people; a $2 plan 20; $5 and up no limit (every plan: https://gifos.app/subscription).
 
 **Hold a public open-floor meeting with a credentials GIF** (a $5+ subscription file or a staff pass, on this computer):
 
@@ -367,7 +369,7 @@ The bot can **hold** a GifOS meeting (as the host of a private meeting, or by ta
 the room the way you set it. It needs GifOS 0.9.26 or newer.
 
 - **A public open-floor meeting** (`mode: "open"`; anyone with the link joins) is held by *capture*: the bot loads a GifOS **credentials file** (the
-  subscription GIF from Settings > Subscription, on a $5+ plan, or a staff pass) and takes the room with the
+  subscription GIF from a meeting's More > Subscription, on a $5+ plan, or a staff pass) and takes the room with the
   page's own "Make me host". From then on only the bot can set the room's password.
 - **A private meeting** (`mode: "admin"`; it has a host) is held by signing in with its `host_password`.
 

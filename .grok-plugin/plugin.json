@@ -1,6 +1,6 @@
 {
   "name": "gifos-meet",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "GifOS meetings for Grok Bot, run on your own computer: create open or host-run meetings with full invite details (nothing sent), put a note-taking bot in them, follow the live transcript, speak through the bot, and run the agenda, Take Turns and the stage. No hosted endpoint, no account, no model key.",
   "author": {
     "name": "GifOS",
