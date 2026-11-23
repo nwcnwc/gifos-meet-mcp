@@ -37,8 +37,11 @@ START=$(git -C "$SRC" rev-parse HEAD); T0=$(date +%s)
 git clone -q --bare "$SRC" origin.git && git -C origin.git update-ref refs/heads/main "$START"
 git clone -q origin.git work && git -C work checkout -q main
 ROOM=botupd$(rnd | cut -c1-8); HOSTPW=hp-$(rnd)
-say "room https://gifos.app/meet/$ROOM start ${START:0:7}"
-echo "$ROOM" > room.txt
+# A private meeting: its link carries the host key's verifier, so the bots can sign in as its host (a bare /meet/<room>
+# is a public open-floor meeting, held only by capture with a $5+ credentials file).
+LINK=$(cd "$SRC" && node --input-type=module -e "import { hostKey, meetingLink } from 'gifos-mcp-core/src/links.js'; const k = await hostKey(process.argv[1], process.argv[2]); console.log(meetingLink('https://gifos.app', process.argv[1], { verifier: k.verifier }));" "$ROOM" "$HOSTPW") || { echo "no link"; exit 1; }
+say "room $LINK start ${START:0:7}"
+echo "$LINK" > room.txt
 
 PORTS=(A:19621 B:19622)
 for xp in "${PORTS[@]}"; do
@@ -46,7 +49,7 @@ for xp in "${PORTS[@]}"; do
   mkdir -p "$x/config" "$x/state" "$x/selfupdate" && chmod 700 "$x/config"
   git clone -q origin.git "$x/gifos-meet-mcp" && git -C "$x/gifos-meet-mcp" checkout -q --detach "$START"
   ( cd "$x/gifos-meet-mcp" && npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip >/dev/null 2>&1 ) || { say "npm ci failed for $x"; exit 1; }
-  printf '{"guards":[{"link":"https://gifos.app/meet/%s","mode":"admin","host_password":"%s","greet":false,"blur_all":false,"rank":%s}]}\n' "$ROOM" "$HOSTPW" "$rank" > "$x/config/guard.json"
+  printf '{"guards":[{"link":"%s","mode":"admin","host_password":"%s","greet":false,"blur_all":false,"rank":%s}]}\n' "$LINK" "$HOSTPW" "$rank" > "$x/config/guard.json"
   cat > "$x/config/env" <<EOF
 GIFOS_BOT_NAME=Upd Bot $x
 GIFOS_BOT_PASSWORD=bp-$(rnd)
@@ -88,7 +91,7 @@ systemctl --user start botupd-guard-A.service; say "guard A started (rank 0)"; s
 systemctl --user start botupd-guard-B.service; say "guard B started (rank 1)"
 
 # Monitor: both bots' own view every 2 s.
-( while :; do
+( trap 'exit 0' TERM; while :; do
     a=$(node "$W/guard-health.mjs" --port 19621 --env "$W/A/config/env"); b=$(node "$W/guard-health.mjs" --port 19622 --env "$W/B/config/env")
     echo "$(date -u +%FT%T.%3NZ) A=$a B=$b pinA=$(sed -n 's/^GIFOS_GUARD_PIN=//p' "$W/A/config/pin" | cut -c1-7) pinB=$(sed -n 's/^GIFOS_GUARD_PIN=//p' "$W/B/config/pin" | cut -c1-7)"
     sleep 2
@@ -96,7 +99,7 @@ systemctl --user start botupd-guard-B.service; say "guard B started (rank 1)"
 echo $! > "$W/monitor.pid"
 if [ -n "${MEETJS:-}" ]; then
   script=$(for i in $(seq 1 200); do printf 'who; sleep 30; '; done)
-  ( cd "$(dirname "$MEETJS")/../.." && node test/swarm/meet.js --room "$ROOM" --name "Observer" --script "$script" > "$W/observer.log" 2>&1 ) &
+  ( cd "$(dirname "$MEETJS")/../.." && exec node test/swarm/meet.js --room "$ROOM" --av "${LINK##*/}" --name "Observer" --script "$script" > "$W/observer.log" 2>&1 ) &
   echo $! > "$W/observer.pid"
 fi
 
