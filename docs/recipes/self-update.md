@@ -14,15 +14,24 @@ as systemd user services, and wants them to follow `main` without ever leaving t
 3. Builds the commit beside the live checkout (`~/gifos-meet-mcp.next`): `npm ci`, then `npm test`, in a clean
    environment that holds none of the bot's secrets. A failing build or test means no restart. A failed test marks
    the commit so it is not tried again.
-4. Asks its own running bot (`guard_status`) whether a restart is safe. It is safe when the bot's own seat saw a
-   sibling holding the room in the last `GIFOS_UPDATE_SIBLING_FRESH_SEC` seconds (default 20), or when the bot
-   holds nothing itself, so its restart takes nothing away. Otherwise it skips the round.
+4. Asks its own running bot (`guard_status`), twice and 45 s apart, whether a restart is safe. It is safe when the bot
+   holds the room and its own seat saw a sibling holding it in the last `GIFOS_UPDATE_SIBLING_FRESH_SEC` seconds
+   (default 20), or when someone else holds the room. A bot in `taking`, `waiting` or `signing-in` may be the one
+   taking the room back, so it does not restart; only once it has held nothing across rounds for
+   `GIFOS_UPDATE_STUCK_MIN` (default 100) does it update anyway, so a fix can still reach a stuck pair. Otherwise it
+   skips the round. The build in step 3 only starts when this check passes too.
 5. Swaps: writes the new commit to the pin file, stops the service, moves the live checkout to
    `~/gifos-meet-mcp.prev` and the new one into its place, and starts the service. Downtime is a restart; nothing is
    built while the bot is down.
-6. Waits up to `GIFOS_UPDATE_REJOIN_SEC` (default 300) for the bot to stand at least as well as before: holding the
-   room if it held it, seated otherwise. If it is not back in time, the round puts the previous checkout back, pins
-   it, starts it, and marks the new commit so it is not tried again. A newer commit on `main` is tried as usual.
+6. Waits up to `GIFOS_UPDATE_REJOIN_SEC` (default 300) for the bot to stand at least as well as before (holding the
+   room if it held it). A restarted bot sometimes waits about 110 s for its seat. If it is not back in time, the round
+   puts the previous checkout back, pins it, starts it, and skips the new commit for a day. If the old commit does
+   not come back either, the new one is not blamed.
+
+A swap marker in the state folder names the commit that must be live while a swap is under way. A round that dies
+mid-swap (reboot, power) is finished by the next one, which puts that commit back. The unit runs the updater from
+whichever checkout holds it, so this works even when the live checkout was moved aside. Builds use the live
+checkout's `node_modules` when the lockfile is unchanged; `npm ci` needs over 1 GB.
 
 The siblings never restart together: their rounds are 30 minutes apart, a round takes a few minutes, and a bot
 whose sibling is restarting sees no sibling holding the room, so it skips that round.
@@ -50,6 +59,10 @@ All of them are optional, in `~/.config/gifos-guard/update.env`:
 | `GIFOS_UPDATE_SOAK_MIN` | 50 | Minutes a new tip waits after this bot first saw it. |
 | `GIFOS_UPDATE_REJOIN_SEC` | 300 | How long a restarted bot has to stand as well as before. |
 | `GIFOS_UPDATE_SIBLING_FRESH_SEC` | 20 | How recent the sibling sighting must be. |
+| `GIFOS_UPDATE_PROBE_GAP_SEC` | 45 | Time between the two looks before a swap. |
+| `GIFOS_UPDATE_STUCK_MIN` | 100 | A bot holding nothing this long across rounds may update. |
+| `GIFOS_UPDATE_ROUND_MAX_MIN` | 20 | A round older than this skips the swap (it may be the sibling's slot). |
+| `GIFOS_UPDATE_BAD_RETRY_MIN` | 1440 | When a failed commit is tried again. |
 | `GIFOS_UPDATE_PORT` | 19520 | The bot's `--http` port. |
 | `GIFOS_UPDATE_NPM_CI_FLAGS` | `--no-audit --no-fund --onnxruntime-node-install-cuda=skip` | |
 | `GIFOS_UPDATE_DIR`, `GIFOS_UPDATE_SERVICE`, `GIFOS_UPDATE_PIN_FILE`, `GIFOS_UPDATE_GUARD_ENV`, `GIFOS_UPDATE_STATE`, `GIFOS_UPDATE_ALLOWED_SIGNERS` | the paths above | |
@@ -68,7 +81,8 @@ systemctl --user restart gifos-meet-guard        # now on the pin file
 systemctl --user enable --now gifos-meet-guard-update.timer
 ```
 
-Run one round by hand: `systemctl --user start gifos-meet-guard-update` (it waits for the round to finish).
+Run one round by hand: `systemctl --user start gifos-meet-guard-update` (it waits for the round to finish). Do it only in
+this bot's own half hour, clear of the sibling's slot.
 Pause updates: `systemctl --user stop gifos-meet-guard-update.timer`. A checkout with local changes, or not at the
 pinned commit, is never touched: the round logs why and skips.
 
