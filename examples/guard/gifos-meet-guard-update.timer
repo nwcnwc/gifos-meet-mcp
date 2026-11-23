@@ -1,0 +1,12 @@
+# Siblings update at different times: give each its own minute, half an hour apart (rank 0 at :00, rank 1 at :30).
+# A round takes a few minutes; the other sibling must be seated and holding the room before a bot restarts.
+[Unit]
+Description=GifOS Meet guard bot self-update, hourly
+
+[Timer]
+OnCalendar=*-*-* *:00:00
+AccuracySec=1s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

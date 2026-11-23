@@ -1,0 +1,15 @@
+# One self-update round for a guard bot (scripts/self-update.sh; docs/recipes/self-update.md), started by
+# gifos-meet-guard-update.timer. Settings (all optional) go in ~/.config/gifos-guard/update.env, e.g. PATH for a node
+# that is not on the default PATH, or GIFOS_UPDATE_SOAK_MIN. Logs: journalctl --user -u gifos-meet-guard-update
+[Unit]
+Description=GifOS Meet guard bot self-update (one round)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-%h/.config/gifos-guard/update.env
+ExecStart=%h/gifos-meet-mcp/scripts/self-update.sh
+# The round bounds its own waits (GIFOS_UPDATE_REJOIN_SEC); no wall-clock kill on a build that is making progress.
+TimeoutStartSec=infinity
+Nice=10

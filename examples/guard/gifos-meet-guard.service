@@ -5,6 +5,8 @@
 # ~/.config/gifos-guard/env (chmod 600) holds GIFOS_BOT_NAME (each sibling may have its own, e.g. "Welcome Bot 1"),
 # GIFOS_BOT_PASSWORD and GIFOS_GUARD_CONFIG. Siblings share the credentials file named in the guard config (chmod 600):
 # that key, not the name, is how they know each other.
+# Pinned: with ~/.config/gifos-guard/pin (GIFOS_GUARD_PIN=<full commit>) the service starts only on that commit. The
+# self-updater (gifos-meet-guard-update.timer, docs/recipes/self-update.md) moves the pin; nothing else should.
 [Unit]
 Description=GifOS Meet guard bot
 After=network-online.target
@@ -14,7 +16,9 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 EnvironmentFile=%h/.config/gifos-guard/env
+EnvironmentFile=-%h/.config/gifos-guard/pin
 WorkingDirectory=%h/gifos-meet-mcp
+ExecStartPre=/bin/sh -c 'test -z "$GIFOS_GUARD_PIN" || test "$(git -C %h/gifos-meet-mcp rev-parse HEAD)" = "$GIFOS_GUARD_PIN"'
 ExecStart=/usr/bin/env node bin/gifos-meet-mcp.js --http
 Restart=always
 RestartSec=15
