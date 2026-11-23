@@ -7,7 +7,7 @@ MCP server for hosting and running bot-led video calls on **GifOS Meet**, free b
 > **In short, for agents** (the [full briefing](#how-gifos-meetings-work-for-agents) is below):
 > 1. **Two kinds of meeting**, named as on the GifOS screens: a **public open-floor meeting** (`type: "open"`, "Start a public open-floor meeting": anyone with the link) or a **private meeting** (`type: "admin"`, "Host a private meeting": a host; the host password's signature is in the link). Asked for a private meeting with no password? Leave `host_password` out: the server makes a strong one, keeps it (0600) and signs the bot in.
 > 2. **Links are capabilities**: share them only with invitees. Never put a password in chat, an invite or a link unless the user asks, and keep every password (host and room) in a secrets vault, never in prompts, notes or logs.
-> 3. **The user's credentials GIF** (subscription or pass) unlocks their plan: hand it over by path (`use_credentials`, `guard_room`). It works in one meeting at a time.
+> 3. **The user's credentials GIF** (subscription or pass) unlocks their plan: hand it over by path (`use_credentials`, `guard_room`). It works in as many meetings at once as it grants (the `meetings` line item).
 > 4. **You are the bot's brain**: `wait_lines` to listen, then `send_chat` or `say` to answer.
 > 5. **Something failed?** See the [failure table](#failure-modes).
 
@@ -81,8 +81,9 @@ in what it returns and logs.
   itself: bigger private meetings, video over TURN on networks that block direct links, and capturing a public open-floor meeting on $5, $10
   or a staff pass. Hand it over by path or base64 with `use_credentials` (any meeting), `credentials` on
   `guard_room`, or `GIFOS_CREDENTIALS` at start. It is read once, put only into the bot's own browser, and never
-  logged or returned. Never paste its bytes in chat or ask the user to. A plan works in **one meeting at a time**:
-  joining a second meeting moves it there, and the first loses it within minutes.
+  logged or returned. Never paste its bytes in chat or ask the user to. A plan works in **as many meetings at once as it
+  grants** (its `meetings` line item, usually 1; the guard state shows `rights.meetings`): joining one more moves it
+  there, and the oldest loses it within minutes.
 
 **The bot's role.** The bot joins as a tile labelled 🤖 bot, transcribes, and says or writes only what you give it
 (`say`, `send_chat`). You are its brain: follow the room with `wait_lines` (blocks until a new line) or
