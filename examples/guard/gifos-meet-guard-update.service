@@ -9,7 +9,9 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 EnvironmentFile=-%h/.config/gifos-guard/update.env
-ExecStart=%h/gifos-meet-mcp/scripts/self-update.sh
+# A round that died mid-swap may have left the live checkout moved aside: run the updater from whichever tree has it
+# (the live one first); that round puts the protected commit back.
+ExecStart=/bin/sh -c 'for d in %h/gifos-meet-mcp %h/gifos-meet-mcp.prev.tmp %h/gifos-meet-mcp.prev %h/gifos-meet-mcp.next; do [ -x "$$d/scripts/self-update.sh" ] && exec "$$d/scripts/self-update.sh"; done; echo "self-update: no checkout holds scripts/self-update.sh"; exit 1'
 # The round bounds its own waits (GIFOS_UPDATE_REJOIN_SEC); no wall-clock kill on a build that is making progress.
 TimeoutStartSec=infinity
 Nice=10
