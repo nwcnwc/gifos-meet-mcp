@@ -98,7 +98,8 @@ with a credentials GIF that may capture, a private meeting by its host password.
 default), blurs guests and greets newcomers. Copies of one guard on several computers (siblings: the same
 credentials or host password, a different `rank`, each with its own name) all hold the meeting at once; one leads (greets,
 answers), and if it dies the next leads with no gap in the hold; a restarted copy holds it again. Siblings
-know each other by that shared key, never by name. Removing
+know each other by that shared key, never by name. Siblings run as services can update themselves from `main`, one at
+a time and never while the other is not holding the room (docs/recipes/self-update.md). Removing
 someone means setting a room password: everyone inside keeps it, the removed person does not get it. GifOS keeps
 no ban list (a person can change browsers), so a room kept with no password removes nobody.
 

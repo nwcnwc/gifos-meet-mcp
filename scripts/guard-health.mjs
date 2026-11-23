@@ -9,8 +9,11 @@
 //   { level, role, seated, holding, sibling_age_s, age_s, safe, why }
 //   level  0 no answer (server down, starting, or no guard)   1 running, not seated (or its status is stale)
 //          2 seated in the room                               3 holds the room (lead or coadmin)
-//   safe   restarting this bot now cannot leave the room unheld: a sibling held the room in this bot's own view
-//          within --fresh seconds, or this bot holds nothing itself (seated or not, its status is fresh).
+//   safe   restarting this bot now cannot leave the room unheld: it holds the room and its own seat saw a sibling
+//          holding it within --fresh seconds, or someone else holds the room (held-by-other).
+//          A bot that holds nothing for another reason (waiting, signing-in, taking, locked-out) may be the one about
+//          to take the room back, so it is not safe here; self-update.sh lets it update only once it has been stuck
+//          like that across rounds.
 // Only GIFOS_MCP_HTTP_TOKEN is read from the env file, and it is never printed.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -31,7 +34,9 @@ export function verdict(status, now, freshS = 20) {
   const r = (v) => (v === null ? null : Math.round(v));
   const out = { level, role: status.role, seated, holding, sibling_age_s: r(sibAge), age_s: r(age) };
   if (!fresh) return { ...out, safe: false, why: 'the guard status is ' + (age === null ? 'missing' : 'stale (' + r(age) + ' s)') };
-  if (!holding) return { ...out, safe: true, why: 'this bot holds nothing now (' + status.role + '): its restart takes nothing from the room' };
+  if (status.role === 'held-by-other') return { ...out, safe: true, why: 'someone else holds the room: this bot\'s restart takes nothing from it' };
+  if (!holding) return { ...out, safe: false, why: 'this bot holds nothing now (' + status.role + ') and may be the one taking the room back' };
+  if (!('sibling_seen_at' in status)) return { ...out, safe: false, why: 'the running gifos-mcp-core is too old to report siblings (no sibling_seen_at)' };
   if (sibAge !== null && sibAge <= freshS) return { ...out, safe: true, why: 'a sibling held the room ' + r(sibAge) + ' s ago' };
   return { ...out, safe: false, why: 'this bot holds the room and sees no sibling holding it' + (sibAge === null ? '' : ' (last ' + r(sibAge) + ' s ago)') };
 }

@@ -17,13 +17,18 @@ test('a bot holding the room may restart only while a sibling held it moments ag
   assert.equal(verdict({ role: 'lead', at: ago(2) }, now, 20).safe, false, 'an older core says nothing about siblings: not safe');
 });
 
-test('a bot that holds nothing takes nothing from the room by restarting', () => {
-  for (const role of ['taking', 'held-by-other', 'waiting', 'locked-out']) {
-    const v = verdict({ role, at: ago(1), seated: role === 'taking' || role === 'held-by-other' }, now, 20);
-    assert.equal(v.safe, true, role); assert.equal(v.holding, false);
+test('only a room someone else holds is safe for a bot that holds nothing; a bot about to take it back is not', () => {
+  assert.equal(verdict({ role: 'held-by-other', at: ago(1), seated: true }, now).safe, true);
+  for (const role of ['taking', 'waiting', 'signing-in', 'locked-out']) {
+    const v = verdict({ role, at: ago(1), seated: role === 'taking' }, now, 20);
+    assert.equal(v.safe, false, role); assert.equal(v.holding, false);
   }
   assert.equal(verdict({ role: 'taking', at: ago(1), seated: true }, now).level, 2);
   assert.equal(verdict({ role: 'waiting', at: ago(1), seated: false }, now).level, 1);
+});
+
+test('a core too old to report siblings says so', () => {
+  assert.match(verdict({ role: 'lead', at: ago(1), seated: true }, now).why, /too old/);
 });
 
 test('no status or a stale one is never safe', () => {

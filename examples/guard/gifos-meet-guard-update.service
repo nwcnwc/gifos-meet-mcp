@@ -13,3 +13,8 @@ ExecStart=%h/gifos-meet-mcp/scripts/self-update.sh
 # The round bounds its own waits (GIFOS_UPDATE_REJOIN_SEC); no wall-clock kill on a build that is making progress.
 TimeoutStartSec=infinity
 Nice=10
+IOSchedulingClass=idle
+# The build (npm ci, npm test) needs about 1 GB beside the bot: under memory pressure it is reclaimed and, if it
+# comes to that, killed first, never the bot.
+MemoryHigh=800M
+OOMScoreAdjust=800

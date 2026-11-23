@@ -74,6 +74,7 @@ GIFOS_UPDATE_PORT=$port
 GIFOS_UPDATE_STATE=$W/$x/selfupdate
 GIFOS_UPDATE_SOAK_MIN=0
 GIFOS_UPDATE_REJOIN_SEC=120
+GIFOS_UPDATE_ROUND_MAX_MIN=2
 EOF
   chmod 600 "$x/config/env"
   ex="$SRC/examples/guard"
@@ -122,7 +123,7 @@ push() {   # $1 = label, $2 = a function that changes the work tree
 }
 on_hold() { on "$1" && both_hold; }
 mk_v2() { echo v2 > docs/self-update-proof.txt; }
-mk_v3() { echo v3 > docs/self-update-proof.txt; }
+mk_v3() { echo v3 > docs/self-update-proof.txt && sed -i 's#"description": "#"description": "(proof v3) #' package.json; }   # package.json moves: npm ci path
 mk_v4() {   # a unit test fails
   echo "import { test } from 'node:test'; import assert from 'node:assert/strict'; test('proof: a broken version', () => assert.equal(1, 2));" > test/unit/proof-broken.test.js
   sed -i 's#test/unit/self-update.test.js"#test/unit/self-update.test.js test/unit/proof-broken.test.js"#' package.json
@@ -136,7 +137,17 @@ push v2 mk_v2; waitfor "both on v2 and holding" 1500 on_hold "$LAST"
 push v3 mk_v3; waitfor "both on v3 and holding" 1500 on_hold "$LAST"; V3=$LAST
 push v4 mk_v4; waitfor "both skipped v4 (tests fail)" 1500 bad_both "$LAST"; on "$V3" && say "ok: both still on v3"
 push v5 mk_v5; waitfor "both rolled back from v5 (no seat taken back)" 1800 bad_both "$LAST"; waitfor "both on v3 again and holding" 400 on_hold "$V3"
-push v6 mk_v6; waitfor "both on v6 and holding" 1500 on_hold "$LAST"
+push v6 mk_v6; waitfor "both on v6 and holding" 1500 on_hold "$LAST"; V6=$LAST
+# A round that died mid-swap (after the live tree moved aside, before the new one moved in): the next round puts the
+# commit named in the marker back. Bot B holds the room meanwhile.
+systemctl --user stop botupd-update-A.timer
+waitfor "B holds alone-ready" 60 holding 19622 B
+systemctl --user stop botupd-guard-A.service
+mv -T "$W/A/gifos-meet-mcp" "$W/A/gifos-meet-mcp.prev.tmp" && echo "$V6" > "$W/A/selfupdate/swapping"
+say "crash: A stopped mid-swap (live tree moved aside, marker ${V6:0:7})"
+systemctl --user start botupd-update-A.service
+crash_ok() { [ "$(git -C "$W/A/gifos-meet-mcp" rev-parse HEAD 2>/dev/null)" = "$V6" ] && [ ! -e "$W/A/selfupdate/swapping" ] && holding 19621 A; }
+waitfor "A recovered from the interrupted swap and holds" 300 crash_ok
 sleep 60
 systemctl --user stop botupd-update-A.timer botupd-update-B.timer
 for x in A B; do for u in update guard; do journalctl --user -u "botupd-$u-$x.service" --since "@$T0" -o short-iso-precise --no-pager > "$W/journal-$u-$x.log"; done; done

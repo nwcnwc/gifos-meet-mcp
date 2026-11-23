@@ -57,6 +57,8 @@ for (const x of ['A', 'B']) {
   check(versions.v4 && has(x, new RegExp(`^SKIP ${versions.v4}: npm test failed`)) && !has(x, new RegExp(`^restarting .* on ${versions.v4}`)), `v4 ${versions.v4} (failing test) skipped on ${x}, never restarted onto`);
   check(versions.v5 && has(x, new RegExp(`^ROLLBACK to \\w+: ${versions.v5} did not take its seat back`)) && has(x, /^ROLLED BACK to /), `v5 ${versions.v5} (no seat) rolled back on ${x}`);
 }
+check(has('A', /^an earlier round stopped mid-swap; putting \w+ back/) && has('A', /^back on \w+; this round ends here/) && /ok: A recovered from the interrupted swap/.test(read('proof.log')), 'crash: an interrupted swap was finished on A and A holds again');
+check(J.A.concat(J.B).some((l) => /^same lockfile: node_modules copied/.test(l.msg)) && J.A.concat(J.B).some((l) => /^the lockfile moved: npm ci done/.test(l.msg)), 'both build paths ran (copied node_modules; npm ci for the package.json change)');
 const unsafe = ['A', 'B'].map((x) => `${x} ${J[x].filter((l) => /^SKIP this round/.test(l.msg)).length}`).join(', ');
 out.push(`info rounds skipped because a restart was not safe: ${unsafe}`);
 out.push(pass ? 'PASS' : 'FAIL');
