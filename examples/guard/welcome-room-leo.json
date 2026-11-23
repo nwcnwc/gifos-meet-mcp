@@ -1,0 +1,16 @@
+{
+  "guards": [
+    {
+      "link": "https://gifos.app/meet/welcome",
+      "mode": "open",
+      "credentials": "/home/you/.config/gifos-guard/staff-pass.gif",
+      "password": null,
+      "blur_all": true,
+      "greet": "Welcome, {names}! I'm Leo, a GifOS welcome bot (a program, not a person). Be kind. If someone is out of line, tap Vote, then Vote out of room, on them. Clear video is disabled.",
+      "voice": "bm_george",
+      "picture": "./leo.png",
+      "rank": 1,
+      "handler": "./claude-handler.mjs"
+    }
+  ]
+}
