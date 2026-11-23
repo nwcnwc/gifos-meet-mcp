@@ -179,7 +179,7 @@ test('gate: talk:true, a human says quill, and the bot replies within the bound'
 
   const meetings = new MeetingStore(home);
   const driver = new MeetingBotDriver(cfg, BOT);
-  driver.bot = { app: page, frame: page };
+  driver.bot = { app: page, frame: page.mainFrame() };   // a real Frame: the driver checks isDetached()
   await driver.startRun();
   driver.state = 'ready';
   // The page is already the running app. A caption poll that lands after the

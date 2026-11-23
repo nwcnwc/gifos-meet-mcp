@@ -121,7 +121,7 @@ test('a joined bot does not answer "Hey bot, what is the capital of France?" by 
   // localhost is a secure context, so WebCrypto works. page.route answers it.
   // The real driver, pointed at this page instead of a GifOS desktop.
   const driver = new MeetingBotDriver(cfg, BOT);
-  driver.bot = { app: page, frame: page };
+  driver.bot = { app: page, frame: page.mainFrame() };   // a real Frame: the driver checks isDetached()
   await driver.startRun();
   driver.state = 'ready';
 

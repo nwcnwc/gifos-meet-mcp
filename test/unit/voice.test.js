@@ -78,6 +78,7 @@ test('setVoice and the other Meet Bot methods report a gap until the app has the
   driver.bot = {
     app: { isClosed: () => false },
     frame: {
+      isDetached: () => false,
       evaluate(fn, arg) {
         seen.push({ src: String(fn), arg });
         if (arg === undefined) return Promise.resolve(false);
