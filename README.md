@@ -415,10 +415,24 @@ or `room.say(text)` answers. [examples/guard/claude-handler.mjs](examples/guard/
 with the Anthropic SDK. Without a handler, you are the brain: `wait_lines` and `send_chat` work in a guarded room like
 in any other.
 
+**Your own interactive bot.** The GifOS bot kit (`@gifos-app/agent/kit`, recipe in
+[gifos-agent docs/bot-kit.md](https://github.com/nwcnwc/gifos-agent/blob/main/docs/bot-kit.md)) runs a bot from one
+config file: any LLM or none, any voice or none, an animated avatar, your own prompt and limits.
+[examples/welcome-guide](examples/welcome-guide) is our GifOS welcome guide built with it, and
+[kit-handler.mjs](examples/welcome-guide/kit-handler.mjs) gives a guard the same brain.
+
 **Start it** either from your assistant with the `guard_room` tool (`guard_status`, `stop_guard`), or when the server
 starts: set `GIFOS_GUARD_CONFIG` to a file like [examples/guard/welcome-room.json](examples/guard/welcome-room.json)
 (paths in it are relative to the file). [examples/guard/gifos-meet-guard.service](examples/guard/gifos-meet-guard.service)
 runs it as a systemd user service that restarts on failure.
+
+**Voice and picture.** A guard may also have `voice` (a Kokoro voice id such as `af_heart` or `bm_george`: the greeting is
+then spoken aloud as well as posted to chat) and `picture` (a PNG, GIF, JPEG or WebP up to 256 KB, shown like any
+person's picture; one per bot process). Rooms without a room password blur pictures and video, so give each bot a strong
+colour and a different shape: [mia.png](examples/guard/mia.png) (orange, round) and [leo.png](examples/guard/leo.png)
+(blue, square), with configs [welcome-room.json](examples/guard/welcome-room.json) and
+[welcome-room-leo.json](examples/guard/welcome-room-leo.json). Kokoro needs about 1 GB of RAM at run time (to be
+measured per box); on a 2 GB machine leave `voice` out or set `GIFOS_TTS_ENGINE=none`.
 
 The credentials file is read once and its bytes go only into the bot's own browser. It is never logged, returned or
 sent anywhere else. Keep it `chmod 600`: whoever holds it holds the plan.

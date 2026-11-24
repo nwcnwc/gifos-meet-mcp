@@ -1,0 +1,26 @@
+{
+  "guards": [
+    {
+      "link": "https://gifos.app/meet/welcome",
+      "mode": "open",
+      "credentials": "/home/you/.config/gifos-guard/staff-pass.gif",
+      "password": null,
+      "blur_all": true,
+      "stage": true,
+      "rank": 0,
+      "name": "Mia",
+      "handler": "../welcome-guide/kit-handler.mjs"
+    },
+    {
+      "link": "https://gifos.app/meet/welcome",
+      "mode": "open",
+      "credentials": "/home/you/.config/gifos-guard/staff-pass.gif",
+      "password": null,
+      "blur_all": true,
+      "stage": true,
+      "rank": 1,
+      "name": "Leo",
+      "handler": "../welcome-guide/kit-handler.mjs"
+    }
+  ]
+}
