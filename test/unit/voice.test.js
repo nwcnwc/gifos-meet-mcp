@@ -389,7 +389,7 @@ test('a transcript append that fails (disk full) keeps every caption line and th
   await Promise.all([server.connect(a), client.connect(b)]);
   const call = async (name, args) => client.callTool({ name, arguments: args });
   const json = async (name, args) => JSON.parse((await call(name, args)).content[0].text);
-  const m = await json('join_meeting', { link: 'https://gifos.app/meet/full-captions', password: 'room-secret' });
+  const m = await json('join_meeting', { link: 'https://gifos.app/meet#room=full-captions', password: 'room-secret' });
   const speech = () => live.tail(m.meeting_id, 0).lines.filter((l) => l.kind === 'speech').map((l) => l.text);
 
   const persist = live.persist;

@@ -137,7 +137,7 @@ test('a joined bot does not answer "Hey bot, what is the capital of France?" by 
     return JSON.parse(r.content[0].text);
   };
 
-  const joined = await json('join_meeting', { link: 'https://gifos.app/meet/capital-room-1' });
+  const joined = await json('join_meeting', { link: 'https://gifos.app/meet#room=capital-room-1' });
   assert.equal(joined.state, 'live');
   const sid = meetings.get(joined.meeting_id).session_id;
 

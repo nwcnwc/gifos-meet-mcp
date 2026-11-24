@@ -152,7 +152,7 @@ test('mic on and transcribe, with talk left off, does not arm a reply', async (t
     assert.notEqual(r.isError, true, r.content[0].text);
     return JSON.parse(r.content[0].text);
   };
-  const joined = await json('join_meeting', { link: 'https://gifos.app/meet/quiet-room-1' });
+  const joined = await json('join_meeting', { link: 'https://gifos.app/meet#room=quiet-room-1' });
   assert.equal(joined.transcribing, true);
   assert.equal(joined.talk, undefined);
   await json('set_mic', { meeting_id: joined.meeting_id, on: true });
@@ -223,7 +223,7 @@ test('gate: talk:true, a human says quill, and the bot replies within the bound'
   assert.deepEqual(host.speak, [], 'talk left off: the bot said nothing');
   await json('end_meeting', { meeting_id: quiet.meeting_id });
 
-  const joined = await json('join_meeting', { link: 'https://gifos.app/meet/talk-room-1', talk: true });
+  const joined = await json('join_meeting', { link: 'https://gifos.app/meet#room=talk-room-1', talk: true });
   assert.equal(joined.state, 'live');
   assert.equal(joined.transcribing, true);
   assert.equal(joined.talk, true);

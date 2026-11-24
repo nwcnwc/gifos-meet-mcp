@@ -82,7 +82,7 @@ test('lists every tool with an input schema', async () => {
 test('create_meeting mints a link on GIFOS_URL and does not touch the browser', async () => {
   const r = await mint('Demo meeting');
   assert.match(r.meeting_id, /^m_[0-9a-f]{10}$/);
-  assert.match(r.link, /^http:\/\/127\.0\.0\.1:19510\/meet\/[0-9a-z]{24}\/[0-9a-f]{24}$/, 'a room the host runs: the link carries the host key verifier, never the password');
+  assert.match(r.link, /^http:\/\/127\.0\.0\.1:19510\/meet#room=[0-9a-z]{24}&v=[0-9a-f]{24}$/, 'a room the host runs: the link carries the host key verifier, never the password');
   assert.equal(bot.started, 0);
   assert.equal(bot.calls.length, 0);
   const again = await mint('Other');
@@ -104,7 +104,7 @@ test('create_meeting returns every invite detail, without joining and without se
     description: 'Q4 numbers.', room_password: 'guest-ticket-9', host_name: 'Ada',
   }));
   assert.equal(r.host_runs_room, false, 'no host password: an open room');
-  assert.match(r.link, /\/meet\/[0-9a-z]{24}$/, 'an open room has the clean link');
+  assert.match(r.link, /\/meet#room=[0-9a-z]{24}$/, 'an open room has the clean link');
   const inv = r.invite;
   assert.equal(inv.title, 'Budget review');
   assert.equal(inv.start.local, '2027-10-20 17:00');
@@ -119,12 +119,12 @@ test('create_meeting returns every invite detail, without joining and without se
   // GifOS 0.9.26: the meeting types are open and admin (town hall is gone).
   const adm = json(await call('create_meeting', { name: 'Board', type: 'admin', host_password: ADMIN }));
   assert.equal(adm.host_runs_room, true);
-  assert.match(adm.link, /\/meet\/[0-9a-z]{24}\/[0-9a-f]{24}$/);
+  assert.match(adm.link, /\/meet#room=[0-9a-z]{24}&v=[0-9a-f]{24}$/);
   assert.equal(JSON.stringify(adm).includes(ADMIN), false, 'the host password is never returned');
   // An admin room with no password given: the server makes a strong one, keeps it 0600, never returns it here.
   const noPw = json(await call('create_meeting', { name: 'Board', type: 'admin', room_password: 'test password' }));
   assert.equal(noPw.host_runs_room, true);
-  assert.match(noPw.link, /\/meet\/[0-9a-z]{24}\/[0-9a-f]{24}$/);
+  assert.match(noPw.link, /\/meet#room=[0-9a-z]{24}&v=[0-9a-f]{24}$/);
   assert.equal(noPw.host_password.made, true);
   assert.equal(noPw.host_password.kept_in, path.join(home, 'host-passwords.json'));
   assert.equal(fs.statSync(noPw.host_password.kept_in).mode & 0o777, 0o600);

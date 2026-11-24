@@ -1,7 +1,7 @@
 {
   "guards": [
     {
-      "link": "https://gifos.app/meet/welcome",
+      "link": "https://gifos.app/meet#room=welcome",
       "mode": "open",
       "credentials": "/home/you/.config/gifos-guard/staff-pass.gif",
       "password": null,

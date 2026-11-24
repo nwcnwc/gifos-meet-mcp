@@ -59,9 +59,9 @@ test('start_meeting can set or change the instructions; without any there are no
   assert.equal((await call('create_meeting', { name: 'Long', instructions: 'z'.repeat(4001) })).isError, true);
 });
 
-test('a plain meeting gets the clean /meet/<room> link, and the bot joins that link', async () => {
+test('a plain meeting gets the clean /meet#room=<room> link, and the bot joins that link', async () => {
   const made = json(await call('create_meeting', { name: 'Clean' }));
-  assert.match(made.link, /^https:\/\/gifos\.app\/meet\/[0-9a-z]{24}$/);
+  assert.match(made.link, /^https:\/\/gifos\.app\/meet#room=[0-9a-z]{24}$/);
   assert.equal(made.invite.join_url, made.link);
   const s = json(await call('start_meeting', { meeting_id: made.meeting_id }));
   assert.equal(s.link, made.link);
