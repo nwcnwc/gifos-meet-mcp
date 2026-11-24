@@ -425,6 +425,14 @@ starts: set `GIFOS_GUARD_CONFIG` to a file like [examples/guard/welcome-room.jso
 (paths in it are relative to the file). [examples/guard/gifos-meet-guard.service](examples/guard/gifos-meet-guard.service)
 runs it as a systemd user service that restarts on failure.
 
+**Voice and picture.** A guard may also have `voice` (a Kokoro voice id such as `af_heart` or `bm_george`: the greeting is
+then spoken aloud as well as posted to chat) and `picture` (a PNG, GIF, JPEG or WebP up to 256 KB, shown like any
+person's picture; one per bot process). Rooms without a room password blur pictures and video, so give each bot a strong
+colour and a different shape: [mia.png](examples/guard/mia.png) (orange, round) and [leo.png](examples/guard/leo.png)
+(blue, square), with configs [welcome-room.json](examples/guard/welcome-room.json) and
+[welcome-room-leo.json](examples/guard/welcome-room-leo.json). Kokoro needs about 1 GB of RAM at run time (to be
+measured per box); on a 2 GB machine leave `voice` out or set `GIFOS_TTS_ENGINE=none`.
+
 The credentials file is read once and its bytes go only into the bot's own browser. It is never logged, returned or
 sent anywhere else. Keep it `chmod 600`: whoever holds it holds the plan.
 

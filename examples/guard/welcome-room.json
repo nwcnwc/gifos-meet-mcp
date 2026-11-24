@@ -6,7 +6,9 @@
       "credentials": "/home/you/.config/gifos-guard/staff-pass.gif",
       "password": null,
       "blur_all": true,
-      "greet": true,
+      "greet": "Welcome, {names}! I'm Mia, a GifOS welcome bot (a program, not a person). Be kind. If someone is out of line, tap Vote, then Vote out of room, on them. Clear video is disabled.",
+      "voice": "af_heart",
+      "picture": "./mia.png",
       "rank": 0,
       "handler": "./claude-handler.mjs"
     }
