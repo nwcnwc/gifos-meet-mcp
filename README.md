@@ -52,7 +52,7 @@ screens name them by their buttons, the tools by `type` / `mode` (which also tak
   password. A subscriber on a $5+ plan, or a staff pass, can take over as host while they're connected
   ("Make me host"); from then on only that host sets its password, until they disconnect (the URL does not change).
 - A **private meeting** (`admin`; "Host a private meeting"; a private, hosted meeting): it has a host. What makes it one is the **host password**: its signature goes into
-  the link (`/meet#room=<room>&v=<verifier>`). The room name rides in the part after #, which browsers never send to a server, so it never reaches GifOS's servers or logs. Older /meet/<room> links still work. There is no private meeting without one. Only the host sets the room password,
+  the link (`/meet#room=<room>&v=<verifier>`). The room name rides in the part after #, which browsers never send to a server, so it never reaches GifOS's servers or logs. The simple public forms, gifos.app/meet/<room> and gifos.app/meet/<room>/<verifier> (hosted), work forever and are fine for links you write by hand, like gifos.app/meet/welcome; they put the room name in the address a server sees. There is no private meeting without one. Only the host sets the room password,
   lets people on the stage, runs the agenda and blurs guests. The door lets in 5 people on the free plan, 20 on $2,
   no limit on $5+. The room closes 5 minutes after the last host leaves.
   - The user gave a host password: pass it as `host_password`. It is used for that call only, never kept.
