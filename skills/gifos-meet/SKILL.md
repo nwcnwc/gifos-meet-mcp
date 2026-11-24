@@ -23,7 +23,7 @@ details, and drives a headless **Meeting Bot** that joins, transcribes, and spea
    you for this call only. It is never stored or returned. There is no town hall.
 2. The result has `link` and `invite`: `title`, `start`/`end` with time zone, `join_url`, `description`,
    `admit` (how guests get in), `roles`, ready-to-send `text`, and `calendar` fields.
-   The room name rides in the part after #, which browsers never send to a server, so it never reaches GifOS's servers or logs. Older /meet/<room> links still work.
+   The room name rides in the part after #, which browsers never send to a server, so it never reaches GifOS's servers or logs. The simple public forms, gifos.app/meet/<room> and gifos.app/meet/<room>/<verifier> (hosted), work forever and are fine for links you write by hand, like gifos.app/meet/welcome; they put the room name in the address a server sees.
 3. **You send the invite** with the user's own mail or calendar connector, after the user approves it. The
    server never sends mail and never writes a calendar file. Never put the room password inside the link.
 
