@@ -2,6 +2,9 @@
 // guardrails, limits and live knowledge as the kit bots, in chat only. Use it as a guard's "handler" when the bot runs
 // as a guard (gifos-mcp-core's Meeting Bot) instead of the kit runner.
 //
+// With the guard's stage policy on, the guard calls onMessage only for the person it promoted, and only while this
+// seat is on the Stage. This file still answers whatever line it is given.
+//
 //   npm install @gifos-app/agent              (beside this file; a version with the kit, @gifos-app/agent/kit)
 //   GIFOS_BOT_CONFIG=/path/to/live.bot.json   (optional; default: live.bot.json next to this file)
 import path from 'node:path';

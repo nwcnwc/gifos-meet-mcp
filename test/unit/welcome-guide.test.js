@@ -32,6 +32,22 @@ test('the demo pair has voice and avatar on, and leads by rank', () => {
   assert.deepEqual(mia.siblings, { Leo: 1 }); assert.deepEqual(leo.siblings, { Mia: 0 });
 });
 
+test('the stage welcome guard is on, with no voice and no picture', () => {
+  const file = path.join(dir, '..', 'guard', 'welcome-stage.json');
+  const guards = JSON.parse(fs.readFileSync(file, 'utf8')).guards;
+  assert.deepEqual(guards.map((g) => g.rank), [0, 1]);
+  assert.deepEqual(guards.map((g) => g.name), ['Mia', 'Leo']);
+  for (const g of guards) {
+    assert.equal(g.stage, true);
+    assert.equal('voice' in g, false);
+    assert.equal(g.voice, undefined);
+    assert.equal('picture' in g, false);
+    assert.equal('avatar' in g, false);
+    assert.equal(g.link, 'https://gifos.app/meet/welcome');
+    assert.equal(g.handler, '../welcome-guide/kit-handler.mjs');
+  }
+});
+
 test('every config: a first name, says it is a bot, live knowledge, guardrails, no secrets, a placeholder link', () => {
   for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.bot.json'))) {
     const c = load(f);
