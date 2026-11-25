@@ -5,7 +5,7 @@
 # ~/.config/gifos-guard/env (chmod 600) holds GIFOS_BOT_NAME (each sibling may have its own, e.g. "Welcome Bot 1"),
 # GIFOS_BOT_PASSWORD and GIFOS_GUARD_CONFIG. Siblings share the credentials file named in the guard config (chmod 600):
 # that key, not the name, is how they know each other.
-# Optional in the env file: GIFOS_BOT_MODE=auto runs the bot with no browser (the meeting's signed core) wherever the
+# Optional in the env file: GIFOS_BOT_MODE=auto (with GIFOS_CORE_MODE=1 while core mode is opt-in) runs the bot with no browser (the meeting's signed core) wherever the
 # meeting's site can hold the room that way, and starts the headless browser only where it cannot yet.
 # Pinned: with ~/.config/gifos-guard/pin (GIFOS_GUARD_PIN=<full commit>) the service starts only on that commit. The
 # self-updater (gifos-meet-guard-update.timer, docs/recipes/self-update.md) moves the pin; nothing else should.

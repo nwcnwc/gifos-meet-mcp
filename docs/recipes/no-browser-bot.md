@@ -4,7 +4,7 @@
 
 **What it does:** with `GIFOS_BOT_MODE=core` the bot joins meetings with no browser at all. Each meeting is the
 meeting's own code (the GifOS core) running inside the server process, loaded from the meeting's site the way a
-browser loads the meeting page, over real WebRTC data channels. It needs Node 22 or later. Chrome, Kokoro and
+browser loads the meeting page, over real WebRTC data channels. It needs Node 22 or later, and `GIFOS_CORE_MODE=1` while core mode is opt-in in `@gifos-app/agent`. Chrome, Kokoro and
 the speech-to-text app are not used.
 
 **What it can do:**
@@ -21,7 +21,7 @@ the speech-to-text app are not used.
 ## Setup
 
 ```sh
-GIFOS_BOT_MODE=core GIFOS_BOT_NAME="Meeting notes" npx gifos-meet-mcp
+GIFOS_CORE_MODE=1 GIFOS_BOT_MODE=core GIFOS_BOT_NAME="Meeting notes" npx gifos-meet-mcp
 ```
 
 Join and read as usual: `join_meeting` with the link, then `get_transcript` and `tail_lines`; `send_chat` to post.
