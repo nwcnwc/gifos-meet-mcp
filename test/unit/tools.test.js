@@ -390,5 +390,5 @@ test('recording tools report a missing bot method as an error', async () => {
 
 test('the server briefs agents at initialize: admin password rule, room password, credentials, etiquette', async () => {
   const ins = client.getInstructions() || '';
-  for (const w of ['PRIVATE MEETING (type admin', 'PUBLIC OPEN-FLOOR MEETING (type open', 'do NOT invent one', 'ROOM password', 'credentials GIF', 'one line per 10 s', 'ban list', 'get_host_password', 'DEFAULTS FOR PLAIN REQUESTS', 'three-word', 'send me info to join', 'in any language', 'kick / remove', 'use_credentials {path}']) assert.ok(ins.includes(w), w);
+  for (const w of ['PRIVATE MEETING (type admin', 'PUBLIC MAJORITY-RULES MEETING (OPEN MEETING) (type open', 'do NOT invent one', 'ROOM password', 'credentials GIF', 'one line per 10 s', 'ban list', 'get_host_password', 'DEFAULTS FOR PLAIN REQUESTS', 'three-word', 'send me info to join', 'in any language', 'kick / remove', 'use_credentials {path}']) assert.ok(ins.includes(w), w);
 });

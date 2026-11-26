@@ -1,6 +1,6 @@
-// The two kinds of meeting, in the words the GifOS screens use: "Start a public open-floor meeting" is type open,
+// The two kinds of meeting, in the words the GifOS screens use: a public majority-rules meeting (open meeting) is type open,
 // "Host a private meeting" (a private, hosted meeting) is type admin. The API values stay open / admin. "public" and
-// "open-floor" are one kind, "private" and "hosted" the other, and there are only two kinds: no tool text, briefing
+// "majority-rules" (the retired "open-floor" still read) are one kind, "private" and "hosted" the other, and there are only two kinds: no tool text, briefing
 // or README line may put a word of one beside a word of the other. create_meeting takes the screen words too.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,9 +16,9 @@ import { MeetingStore } from 'gifos-mcp-core/src/meetings.js';
 import { tmpHome } from './fixtures/tmp-home.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PUB = '(?:public|open[- ]floor)', PRIV = '(?:private|hosted)', GAP = '[\\s,;:/()–—-]*(?:and|or|&)?[\\s,;:/()–—-]*';
+const PUB = '(?:public|open[- ]floor|majority[- ]rules)', PRIV = '(?:private|hosted)', GAP = '[\\s,;:/()–—-]*(?:and|or|&)?[\\s,;:/()–—-]*';
 const MIX = new RegExp('\\b' + PUB + GAP + PRIV + '\\b|\\b' + PRIV + GAP + PUB + '\\b', 'i');
-const OLD = [/\bopen rooms?\b/i, /\bopen-room\b/i, /\badmin rooms?\b/i, /\ba room with a host\b/i, /\bOPEN room\b/, /\bADMIN room\b/];
+const OLD = [/\bopen[- ]floor\b/i, /\bopen rooms?\b/i, /\bopen-room\b/i, /\badmin rooms?\b/i, /\ba room with a host\b/i, /\bOPEN room\b/, /\bADMIN room\b/];
 
 async function open() {
   const home = tmpHome('gifos-meet-kind-');
@@ -45,9 +45,9 @@ test('create_meeting names both kinds the way the screens do; type keeps the val
   const c = tools.find((t) => t.name === 'create_meeting');
   const type = c.inputSchema.properties.type;
   assert.deepEqual(type.enum, ['open', 'admin'], 'the API values are unchanged');
-  assert.match(type.description, /open[^.]*public open-floor meeting/);
+  assert.match(type.description, /open[^.]*public majority-rules meeting/);
   assert.match(type.description, /admin[^.]*private meeting/);
-  assert.match(c.description, /Start a public open-floor meeting/);
+  assert.match(c.description, /public majority-rules meeting \(open meeting\)/);
   assert.match(c.description, /Host a private meeting/);
 });
 
@@ -58,19 +58,19 @@ test('no tool text, briefing paragraph or README line uses an old room name or m
   for (const [where, text] of textsOf(tools)) clean(where, text);
   INSTRUCTIONS.split('\n\n').forEach((p, i) => clean('briefing paragraph ' + (i + 1), p));
   fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8').split('\n').forEach((l, i) => clean('README.md:' + (i + 1), l));
-  for (const w of ['public open-floor meeting', 'Start a public open-floor meeting', 'private meeting', 'Host a private meeting', 'type admin', 'type open']) assert.ok(INSTRUCTIONS.includes(w), 'the briefing says ' + w);
+  for (const w of ['public majority-rules meeting (open meeting)', 'private meeting', 'Host a private meeting', 'type admin', 'type open']) assert.ok(INSTRUCTIONS.includes(w), 'the briefing says ' + w);
   assert.ok(['a public hosted meeting', 'private open-floor', 'public or private meetings'].every((s) => MIX.test(s)));
-  assert.ok(['a private, hosted meeting', 'a public open-floor meeting'].every((s) => !MIX.test(s)));
+  assert.ok(['a private, hosted meeting', 'a public majority-rules meeting'].every((s) => !MIX.test(s)));
 });
 
 test('create_meeting takes the screen words and the old ones for type, and refuses a mixed phrase', async () => {
   const { client, done } = await open();
   const make = async (type) => client.callTool({ name: 'create_meeting', arguments: { name: 'Kind ' + type, type } });
   try {
-    for (const t of ['open', 'public', 'open floor', 'Open-floor', 'a public open-floor meeting']) {
+    for (const t of ['open', 'public', 'open floor', 'Open-floor', 'a public open-floor meeting', 'majority rules', 'a public majority-rules meeting']) {
       const r = await make(t);
       assert.ok(!r.isError, t + ': ' + r.content[0].text);
-      assert.equal(JSON.parse(r.content[0].text).host_runs_room, false, t + ' makes a public open-floor meeting');
+      assert.equal(JSON.parse(r.content[0].text).host_runs_room, false, t + ' makes a public majority-rules meeting');
     }
     for (const t of ['admin', 'private', 'hosted', 'Host a private meeting', 'a private, hosted meeting']) {
       const r = await make(t);
