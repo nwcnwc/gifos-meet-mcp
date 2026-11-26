@@ -15,7 +15,7 @@ const V = 'a'.repeat(24);
 test('meet.gifos.app paths map to gifos.app/meet, keeping query and hash', () => {
   assert.equal(normalizeMeetLink('https://meet.gifos.app/'), 'https://gifos.app/meet/');
   assert.equal(normalizeMeetLink('https://meet.gifos.app/welcome'), 'https://gifos.app/meet#room=welcome');
-  assert.equal(normalizeMeetLink('https://meet.gifos.app/welcome/' + V + '?x=1#room=ignored'), 'https://gifos.app/meet?x=1#room=welcome&v=' + V + '&v=ignored');
+  assert.equal(normalizeMeetLink('https://meet.gifos.app/welcome/' + V + '?x=1#relay=x'), 'https://gifos.app/meet?x=1#room=welcome&v=' + V + '&relay=x');
   assert.equal(normalizeMeetLink('https://MEET.gifos.app/room-1'), 'https://gifos.app/meet#room=room-1');
 });
 
