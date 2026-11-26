@@ -379,6 +379,7 @@ The policy:
 |---|---|---|
 | `password` | `null` | `null`: the room has no password, and any password set is cleared at once (with no password GifOS shows no clear video to anyone). A value: the bot sets it and puts it back if it changes. |
 | `blur_all` | `true` | Presses Blur guests when the page offers it to the bot. |
+| `no_blur` | `false` | `true`: while the bot holds the room and the room's host right lets viewers tap to unblur (GifOS 0.9.28.34+), the bot picks No blur in the meeting through the camera chooser, and picks it again when the page asks (a No blur counts only when picked after the right came on). Never under a host's blur order on the bot; with `stage` on, only while the bot is on the Stage. |
 | `greet` | `true` | The welcome the lead bot posts in chat for newcomers (batched: a public majority-rules meeting's chat allows one line per 10 s). `true`: a short neutral default (it adds "Clear video is disabled." only when `blur_all` is on). `false`: no welcome. A string: your own text; it must contain `{names}`, which becomes the newcomers' names. |
 | `rank` | `0` | Sibling order (below). |
 | `handler` | none | A module that talks with people (below). |
