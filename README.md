@@ -49,8 +49,8 @@ screens name them by their buttons, the tools by `type` / `mode` (which also tak
 `majority rules` for `open`, `private` or `hosted` for `admin`):
 
 - A **public majority-rules meeting** (`open`): anyone with the link joins. It has no door limit. Anyone inside may set its room
-  password. A subscriber on a $5+ plan, or a staff pass, can take over as host while they're connected
-  ("Make me host"); from then on only that host sets its password, until they disconnect (the URL does not change).
+  password. No plan takes over as host there: only a GifOS staff pass does (GifOS's own bots, such as the welcome
+  bots, with `guard_room`); from then on only that bot sets its password (the URL does not change).
 - A **private meeting** (`admin`; "Host a private meeting"; a private, hosted meeting): it has a host. What makes it one is the **host password**: its signature goes into
   the link (`/meet#room=<room>&v=<verifier>`). The room name rides in the part after #, which browsers never send to a server, so it never reaches GifOS's servers or logs. The simple public forms, gifos.app/meet/<room> and gifos.app/meet/<room>/<verifier> (hosted), work forever and are fine for links you write by hand, like gifos.app/meet/welcome; they put the room name in the address a server sees. There is no private meeting without one. Only the host sets the room password,
   lets people on the stage, runs the agenda and blurs guests. The door lets in 5 people on the free plan, 20 on $2,
@@ -78,8 +78,7 @@ in what it returns and logs.
 - The **bot's own** name and password (`GIFOS_BOT_NAME`, `GIFOS_BOT_PASSWORD`, else a stored pair in `bot.json`)
   are its identity: whoever has the pair can command the bot. Never show them.
 - The **user's credentials GIF** is a GifOS subscription file (Settings > Subscription) or a pass. It is the plan
-  itself: bigger private meetings, video over TURN on networks that block direct links, and capturing a public majority-rules meeting on $5, $10
-  or a staff pass. Hand it over by path or base64 with `use_credentials` (any meeting), `credentials` on
+  itself: bigger private meetings and video over TURN on networks that block direct links. Hand it over by path or base64 with `use_credentials` (any meeting), `credentials` on
   `guard_room`, or `GIFOS_CREDENTIALS` at start. It is read once, put only into the bot's own browser, and never
   logged or returned. Never paste its bytes in chat or ask the user to. A plan works in **as many meetings at once as it
   grants** (its `meetings` line item, usually 1; the guard state shows `rights.meetings`): joining one more moves it
@@ -143,7 +142,7 @@ To put the bot in the room as its host:
 
 The answer says `bot_is_host: true`. A free private meeting lets in 5 people; a $2 plan 20; $5 and $10 no limit.
 
-**Hold a public majority-rules meeting with a credentials GIF** (a $5+ subscription file or a staff pass, on this computer):
+**Hold a public majority-rules meeting with a GifOS staff pass** (GifOS's own bots only; no plan sold includes this):
 
 ```json
 { "tool": "guard_room", "arguments": { "link": "https://gifos.app/meet#room=<room>", "credentials": "/path/to/credentials.gif" } }
@@ -370,7 +369,7 @@ The bot can **hold** a GifOS meeting (as the host of a private meeting, or by ta
 the room the way you set it. It needs GifOS 0.9.26 or newer.
 
 - **A public majority-rules meeting** (`mode: "open"`; anyone with the link joins) is held by *capture*: the bot loads a GifOS **credentials file** (the
-  subscription GIF from Settings > Subscription, on a $5+ plan, or a staff pass) and takes the room with the
+  GifOS staff pass, minted by GifOS for its own bots; no plan sold includes capture) and takes the room with the
   page's own "Make me host". From then on only the bot can set the room's password.
 - **A private meeting** (`mode: "admin"`; it has a host) is held by signing in with its `host_password`.
 

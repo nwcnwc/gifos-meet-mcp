@@ -123,16 +123,16 @@ test('create_meeting takes "host" for type admin', async () => {
   } finally { await done(); }
 });
 
-test('a public open-floor meeting can be taken over as host on a $5+ plan (not "has no host", not any plan or $2)', () => {
+test('a public open-floor meeting can be taken over as host only with a GifOS staff pass, never a plan (not "has no host")', () => {
   const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
   const brief = INSTRUCTIONS;
   for (const [name, t] of [['README', readme], ['briefing', brief]]) {
     assert.equal(/\bhas no host\b|\bthere is no host\b/i.test(t), false, name + ' still claims an open-floor meeting has no host');
-    assert.match(t, /\$5\+/, name + ' names the $5+ plan');
-    assert.match(t, /take over as host|Make me host/, name + ' names the takeover');
+    assert.match(t, /staff pass/, name + ' names the staff pass');
+    assert.equal(/\$5\+ (?:subscriber|plan)[^.]*take over|\$5\+ subscription file|capturing a public/i.test(t), false, name + ' still offers taking over to a plan');
     assert.equal(/any plan/.test(t) && /take over as host|Make me host|capture/.test(t) && /\$2 plan can take/.test(t), false);
   }
-  // The qualifying plan for Make me host is $5+, never $2 or "$5 or $10".
+  // No plan qualifies for Make me host (staff pass only, 2026-11-26).
   assert.doesNotMatch(brief, /\$5 or \$10|\$5\/\$10/);
   assert.doesNotMatch(readme, /\$5 or \$10|\$5\/\$10/);
 });
