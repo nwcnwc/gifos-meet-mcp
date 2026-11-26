@@ -110,7 +110,8 @@ test('old path forms and the fragment form both name the room', () => {
     ['https://gifos.app/meet#room=' + R, R, '', false],
     ['https://gifos.app/meet#room=' + R + '&v=' + Ver, R, Ver, false],
     ['https://gifos.app/cast#room=' + R + '&v=' + Ver + '&at=1', R, Ver, true],
-    ['https://gifos.app/run.html#room=' + R + '&v=' + Ver + '&cast=1', R, Ver, true],
+    ['https://gifos.app/versions/0.9.28.34/cast.html#room=' + R + '&v=' + Ver, R, Ver, true],
+    ['https://gifos.app/run.html#room=' + R + '&v=' + Ver + '&cast=1', R, Ver, false],   // no key makes a broadcast: the page does
     ['https://gifos.app/run.html#room=' + R + '&v=' + Ver, R, Ver, false],
   ];
   for (const [link, room, ver, cast] of rows) {
