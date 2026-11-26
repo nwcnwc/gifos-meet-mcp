@@ -15,7 +15,7 @@ const V = 'a'.repeat(24);
 test('meet.gifos.app paths map to gifos.app/meet, keeping query and hash', () => {
   assert.equal(normalizeMeetLink('https://meet.gifos.app/'), 'https://gifos.app/meet/');
   assert.equal(normalizeMeetLink('https://meet.gifos.app/welcome'), 'https://gifos.app/meet#room=welcome');
-  assert.equal(normalizeMeetLink('https://meet.gifos.app/welcome/' + V + '?x=1#v=ignored'), 'https://gifos.app/meet?x=1#room=welcome&v=' + V + '&v=ignored');
+  assert.equal(normalizeMeetLink('https://meet.gifos.app/welcome/' + V + '?x=1#room=ignored'), 'https://gifos.app/meet?x=1#room=welcome&v=' + V + '&v=ignored');
   assert.equal(normalizeMeetLink('https://MEET.gifos.app/room-1'), 'https://gifos.app/meet#room=room-1');
 });
 
@@ -110,7 +110,8 @@ test('old path forms and the fragment form both name the room', () => {
     ['https://gifos.app/meet#room=' + R, R, '', false],
     ['https://gifos.app/meet#room=' + R + '&v=' + Ver, R, Ver, false],
     ['https://gifos.app/cast#room=' + R + '&v=' + Ver + '&at=1', R, Ver, true],
-    ['https://gifos.app/run.html#v=' + R + '&av=' + Ver + '&bc=1', R, Ver, true],
+    ['https://gifos.app/run.html#room=' + R + '&v=' + Ver + '&cast=1', R, Ver, true],
+    ['https://gifos.app/run.html#room=' + R + '&v=' + Ver, R, Ver, false],
   ];
   for (const [link, room, ver, cast] of rows) {
     assert.equal(normalizeMeetLink(link), link);
@@ -118,6 +119,9 @@ test('old path forms and the fragment form both name the room', () => {
     assert.equal(verifierFromLink(link), ver, link);
     assert.equal(isBroadcastLink(link), cast, link);
   }
+  // The old page-entry form names no room.
+  assert.equal(roomFromLink('https://gifos.app/run.html#v=' + R + '&av=' + Ver + '&bc=1'), '');
+  assert.equal(roomFromLink('https://gifos.app/run.html#v=' + Ver), '');
   const fromMeet = normalizeMeetLink('https://meet.gifos.app/' + R);
   assert.equal(new URL(fromMeet).pathname, '/meet');
   assert.equal(roomFromLink(fromMeet), R);

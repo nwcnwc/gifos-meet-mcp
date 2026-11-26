@@ -8,6 +8,6 @@ import { WorkerPool } from 'gifos-mcp-core/src/pool.js';
 const FAKE = fileURLToPath(new URL('./fake-worker.js', import.meta.url));
 const cfg = loadConfig({ GIFOS_MCP_HOME: process.argv[2], GIFOS_VOICE: '0', GIFOS_TTS_ENGINE: 'none' });
 const pool = new WorkerPool(cfg, { name: 'notes-stageb', password: 'bot-pass-stage-b-41' }, { workers: 1, rooms: 1, workerScript: FAKE });
-await pool.join('https://gifos.app/run.html#v=roomA', '');
+await pool.join('https://gifos.app/run.html#room=roomA', '');
 process.stdout.write(pool.workers[0].child.pid + '\n');
 setInterval(() => {}, 1000);

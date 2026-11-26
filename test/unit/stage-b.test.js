@@ -71,9 +71,9 @@ test('each worker has its own profile and bot name; worker 0 keeps the original'
 
 test('joins fill the warm worker, then start the next; calls stay with the worker that joined', async () => {
   makePool();
-  const a = await pool.join('https://gifos.app/run.html#v=roomA', ROOM);
-  const b = await pool.join('https://gifos.app/run.html#v=roomB', 'pw-b');
-  const c = await pool.join('https://gifos.app/run.html#v=roomC', 'pw-c');
+  const a = await pool.join('https://gifos.app/run.html#room=roomA', ROOM);
+  const b = await pool.join('https://gifos.app/run.html#room=roomB', 'pw-b');
+  const c = await pool.join('https://gifos.app/run.html#room=roomC', 'pw-c');
   assert.deepEqual([a, b, c], ['w0:mt_1', 'w0:mt_2', 'w1:mt_1']);
   await pool.say(c, 'hello C');
   await pool.say(a, 'hello A');
@@ -81,7 +81,7 @@ test('joins fill the warm worker, then start the next; calls stay with the worke
   const log1 = await pool.workers[1].call('calls');
   assert.deepEqual(log0.filter((r) => r[0] === 'say'), [['say', 'mt_1', 'hello A']]);
   assert.deepEqual(log1.filter((r) => r[0] === 'say'), [['say', 'mt_1', 'hello C']]);
-  assert.deepEqual(log1.find((r) => r[0] === 'join'), ['join', 'https://gifos.app/run.html#v=roomC', 'pw-c']);
+  assert.deepEqual(log1.find((r) => r[0] === 'join'), ['join', 'https://gifos.app/run.html#room=roomC', 'pw-c']);
   assert.match(await pool.transcript(c), /notes-stageb-w1 mt_1/);
   const info = await pool.info();
   assert.deepEqual(info.workers.map((w) => [w.worker, w.state, w.rooms, w.bot_name]), [[0, 'ready', 2, 'notes-stageb'], [1, 'ready', 1, 'notes-stageb-w1']]);
@@ -90,18 +90,18 @@ test('joins fill the warm worker, then start the next; calls stay with the worke
 test('a full pool refuses the next join; a leave frees that seat on that worker', async () => {
   makePool();
   const ids = [];
-  for (const r of ['a', 'b', 'c', 'd']) ids.push(await pool.join('https://gifos.app/run.html#v=room' + r, ''));
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roome', ''), /Every worker is full/);
+  for (const r of ['a', 'b', 'c', 'd']) ids.push(await pool.join('https://gifos.app/run.html#room=room' + r, ''));
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roome', ''), /Every worker is full/);
   await pool.leave(ids[3]);
   await assert.rejects(pool.say(ids[3], 'gone'), /No worker holds session/);
-  const again = await pool.join('https://gifos.app/run.html#v=roome', '');
+  const again = await pool.join('https://gifos.app/run.html#room=roome', '');
   assert.equal(splitSession(again).index, 1);
 });
 
 test('thinking in a worker is reported under the supervisor session id', async () => {
   makePool();
-  await pool.join('https://gifos.app/run.html#v=roomA', '');
-  const b = await pool.join('https://gifos.app/run.html#v=roomB', '');
+  await pool.join('https://gifos.app/run.html#room=roomA', '');
+  const b = await pool.join('https://gifos.app/run.html#room=roomB', '');
   await pool.workers[0].call('think', 'mt_2', true);
   assert.equal(pool.queue.isThinking(b), true);
   assert.equal(pool.queue.isThinking('w0:mt_1'), false);
@@ -112,7 +112,7 @@ test('thinking in a worker is reported under the supervisor session id', async (
 
 test('a worker refuses a method that is not on its list, and the bot password is not on its command line or environment', async () => {
   makePool();
-  await pool.join('https://gifos.app/run.html#v=roomA', '');
+  await pool.join('https://gifos.app/run.html#room=roomA', '');
   await assert.rejects(pool.workers[0].call('close'), /no method "close"/);
   const me = await pool.workers[0].call('whoami');
   assert.equal(me.name, CREDS.name);
@@ -186,7 +186,7 @@ test('the real worker entry boots over IPC and answers info without starting a b
 test('a worker that stops answering the heartbeat is killed, and its rooms are dropped', { timeout: 10000 }, async () => {
   makePool({ heartbeatMs: 50, stuckMs: 400 });
   const lost = new Promise((resolve) => pool.onLost((ids, why, index) => resolve({ ids, why, index })));
-  const a = await pool.join('https://gifos.app/run.html#v=roomA', '');
+  const a = await pool.join('https://gifos.app/run.html#room=roomA', '');
   const hung = pool.workers[0].call('hang');
   const got = await lost;
   assert.deepEqual(got, { ids: [a], why: got.why, index: 0 });
@@ -211,29 +211,29 @@ test('a worker that keeps dying waits longer before each restart, and joins go t
     },
   });
   // Worker 0 dies on boot, so the same join starts worker 1 instead of failing.
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomB', ''), 'w1:mt_1');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomB', ''), 'w1:mt_1');
   assert.deepEqual(forks, [1, 1]);
   // Worker 0 is waiting out its backoff, so the next join stays on worker 1.
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomC', ''), 'w1:mt_2');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomC', ''), 'w1:mt_2');
   assert.deepEqual(forks, [1, 1]);
   // Worker 1 is full and worker 0 may not start yet.
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomD', ''), /worker 0 restarts in 1s/i);
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomD', ''), /worker 0 restarts in 1s/i);
   assert.deepEqual(forks, [1, 1]);
   assert.equal((await pool.info()).workers[0].restart_in_ms, 1000);
   // 1s, then 2s, then 4s, then capped at 4s.
   for (const wait of [1000, 2000, 4000, 4000]) {
     now += wait - 1;
-    await assert.rejects(pool.join('https://gifos.app/run.html#v=roomD', ''), /restarts in/);
+    await assert.rejects(pool.join('https://gifos.app/run.html#room=roomD', ''), /restarts in/);
     now += 1;
     const before = forks[0];
-    await assert.rejects(pool.join('https://gifos.app/run.html#v=roomD', ''), /worker 0 exited/);
+    await assert.rejects(pool.join('https://gifos.app/run.html#room=roomD', ''), /worker 0 exited/);
     assert.equal(forks[0], before + 1);
   }
 });
 
 test('a call that never answers times out without killing a worker that is still alive', { timeout: 10000 }, async () => {
   makePool({ heartbeatMs: 50, stuckMs: 2000, callMs: 200 });
-  const a = await pool.join('https://gifos.app/run.html#v=roomA', '');
+  const a = await pool.join('https://gifos.app/run.html#room=roomA', '');
   const t0 = Date.now();
   await assert.rejects(pool.workers[0].call('slow'), /Worker 0 did not answer slow within 200ms/);
   assert.ok(Date.now() - t0 < 1500);
@@ -248,7 +248,7 @@ test('a join that times out and then lands late is left at once, so no seat is o
   makePool({ workers: 1, rooms: 1, callMs: 2000, joinMs: 200 });
   await pool.ensureStarted();
   await pool.workers[0].call('holdJoins');
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomA', ''), /Worker 0 did not answer join within 200ms/);
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomA', ''), /Worker 0 did not answer join within 200ms/);
   // The join may still land, so its seat stays taken until it answers.
   assert.equal(pool.workers[0].used, 1);
   await pool.workers[0].call('releaseJoins');
@@ -259,7 +259,7 @@ test('a join that times out and then lands late is left at once, so no seat is o
   }
   assert.deepEqual(log.filter((r) => r[0] === 'leave'), [['leave', 'mt_1']]);
   // The seat is free for the next join.
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomB', ''), 'w0:mt_2');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomB', ''), 'w0:mt_2');
 });
 
 test('the bot on worker 1 sits as <name>-w1; its own speech is a spoken line, not a human one', async () => {
@@ -271,8 +271,8 @@ test('the bot on worker 1 sits as <name>-w1; its own speech is a spoken line, no
   await Promise.all([server.connect(ta), client.connect(tb)]);
   const json = async (name, args = {}) => JSON.parse((await client.callTool({ name, arguments: args })).content[0].text);
 
-  const one = await json('join_meeting', { link: 'https://gifos.app/run.html#v=roomOne' });
-  const two = await json('join_meeting', { link: 'https://gifos.app/run.html#v=roomTwo' });
+  const one = await json('join_meeting', { link: 'https://gifos.app/run.html#room=roomOne' });
+  const two = await json('join_meeting', { link: 'https://gifos.app/run.html#room=roomTwo' });
   assert.deepEqual([one, two].map((m) => splitSession(meetings.get(m.meeting_id).session_id).index), [0, 1]);
   for (const m of [one, two]) {
     assert.equal((await json('say', { meeting_id: m.meeting_id, text: 'Hello from the bot' })).spoken, true);
@@ -299,7 +299,7 @@ test('a meeting joined by hand with no password, and one started with start_meet
   const json = async (name, args = {}) => JSON.parse((await client.callTool({ name, arguments: args })).content[0].text);
 
   // Neither join has a room password, so neither is an order on the schedule.
-  const open = await json('join_meeting', { link: 'http://127.0.0.1:19510/run.html#v=openroom', topic: 'Open' });
+  const open = await json('join_meeting', { link: 'http://127.0.0.1:19510/run.html#room=openroom', topic: 'Open' });
   assert.equal(open.state, 'live');
   await json('create_meeting', { name: 'Own', admin_password: 'owner-77' });
   const own = meetings.all().find((m) => m.topic === 'Own');
@@ -345,7 +345,7 @@ test('while worker 0 waits out its restart, a join warms worker 1 instead of fai
   await exited;
   assert.ok((await pool.info()).workers[0].restart_in_ms > 0);
   await pool.ensureStarted();
-  assert.equal(await pool.join('http://127.0.0.1:19510/run.html#v=spare', ''), 'w1:mt_1');
+  assert.equal(await pool.join('http://127.0.0.1:19510/run.html#room=spare', ''), 'w1:mt_1');
 });
 
 // Kills worker 0 with one room seated there by start_meeting, and holds joins
@@ -513,7 +513,7 @@ test('a worker whose supervisor is killed closes its browser and exits instead o
 test('a worker killed under its browser leaves no browser temp folder behind', async () => {
   let now = 1000000;
   makePool({ workers: 1, now: () => now });
-  await pool.join('https://gifos.app/run.html#v=roomA', '');
+  await pool.join('https://gifos.app/run.html#room=roomA', '');
   const { tmpdir, artifacts } = await pool.workers[0].call('tmp');
   assert.ok(artifacts && fs.existsSync(artifacts));
   // Each worker gets a TMPDIR of its own, so nothing its Chromium leaves
@@ -528,7 +528,7 @@ test('a worker killed under its browser leaves no browser temp folder behind', a
   assert.equal(fs.existsSync(tmpdir), false, 'left ' + tmpdir);
   // The restarted worker gets a clean one, and close() removes it.
   now += 1000;
-  await pool.join('https://gifos.app/run.html#v=roomB', '');
+  await pool.join('https://gifos.app/run.html#room=roomB', '');
   const again = await pool.workers[0].call('tmp');
   assert.equal(again.tmpdir, tmpdir);
   assert.deepEqual(fs.readdirSync(tmpdir), [path.basename(again.artifacts)]);
@@ -597,9 +597,9 @@ test('close() stops a worker still booting (Kokoro download) at once, not after 
 
 test('status answers at once when workers never answer info; each such row says so and the workers stay up', { timeout: 15000 }, async () => {
   makePool({ heartbeatMs: 50, stuckMs: 5000, callMs: 5000, infoMs: 500 });
-  await pool.join('https://gifos.app/run.html#v=roomA', '');
-  await pool.join('https://gifos.app/run.html#v=roomB', '');
-  await pool.join('https://gifos.app/run.html#v=roomC', '');
+  await pool.join('https://gifos.app/run.html#room=roomA', '');
+  await pool.join('https://gifos.app/run.html#room=roomB', '');
+  await pool.join('https://gifos.app/run.html#room=roomC', '');
   await pool.workers[0].call('stickInfo');
   await pool.workers[1].call('stickInfo');
   const t0 = Date.now();
@@ -618,9 +618,9 @@ const voiceCalls = async (w) => (await w.call('calls')).filter((r) => r[0] === '
 test('a worker that restarts gets the voice settings set before it died', async () => {
   let now = Date.now();
   makePool({ now: () => now });
-  await pool.join('https://gifos.app/run.html#v=roomA', '');
-  await pool.join('https://gifos.app/run.html#v=roomB', '');
-  await pool.join('https://gifos.app/run.html#v=roomC', '');
+  await pool.join('https://gifos.app/run.html#room=roomA', '');
+  await pool.join('https://gifos.app/run.html#room=roomB', '');
+  await pool.join('https://gifos.app/run.html#room=roomC', '');
   const silent = { respond_to_command: false, conversation_voice: 'silent' };
   await pool.setVoice(silent);
   assert.deepEqual(await voiceCalls(pool.workers[1]), [silent]);
@@ -632,15 +632,15 @@ test('a worker that restarts gets the voice settings set before it died', async 
   now += 1000;
   // The new process starts with Meet Bot's defaults; the room it rejoins
   // must hear the same voice as every other room.
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomC', ''), 'w1:mt_1');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomC', ''), 'w1:mt_1');
   assert.deepEqual(await voiceCalls(pool.workers[1]), [silent]);
 });
 
 test('set_voice reaches every ready worker even when one refuses it, and the one that refused gets it on its next join', async () => {
   makePool();
-  await pool.join('https://gifos.app/run.html#v=roomA', '');
-  await pool.join('https://gifos.app/run.html#v=roomB', '');
-  await pool.join('https://gifos.app/run.html#v=roomC', '');
+  await pool.join('https://gifos.app/run.html#room=roomA', '');
+  await pool.join('https://gifos.app/run.html#room=roomB', '');
+  await pool.join('https://gifos.app/run.html#room=roomC', '');
   await pool.workers[0].call('breakVoice');
   const local = { respond_to_command: true, conversation_voice: 'local' };
   const got = await pool.setVoice(local);
@@ -650,15 +650,15 @@ test('set_voice reaches every ready worker even when one refuses it, and the one
   assert.deepEqual(await voiceCalls(pool.workers[0]), [local]);
   await pool.workers[0].call('fixVoice');
   await pool.leave('w0:mt_1');
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomD', ''), 'w0:mt_3');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomD', ''), 'w0:mt_3');
   assert.deepEqual(await voiceCalls(pool.workers[0]), [local, local]);
 });
 
 test('set_voice still reaches the other workers when one never answers it, after one call timeout', { timeout: 10000 }, async () => {
   makePool({ callMs: 300 });
-  await pool.join('https://gifos.app/run.html#v=roomA', '');
-  await pool.join('https://gifos.app/run.html#v=roomB', '');
-  await pool.join('https://gifos.app/run.html#v=roomC', '');
+  await pool.join('https://gifos.app/run.html#room=roomA', '');
+  await pool.join('https://gifos.app/run.html#room=roomB', '');
+  await pool.join('https://gifos.app/run.html#room=roomC', '');
   await pool.workers[0].call('holdVoice');
   const local = { respond_to_command: true, conversation_voice: 'local' };
   const t0 = Date.now();
@@ -670,9 +670,9 @@ test('set_voice still reaches the other workers when one never answers it, after
 
 test('a worker that refused set_voice is asked again on its own, without a new join, and status shows it pending until it takes it', { timeout: 10000 }, async () => {
   makePool({ voiceRetryMs: 100 });
-  await pool.join('https://gifos.app/run.html#v=roomA', '');
-  await pool.join('https://gifos.app/run.html#v=roomB', '');
-  await pool.join('https://gifos.app/run.html#v=roomC', '');
+  await pool.join('https://gifos.app/run.html#room=roomA', '');
+  await pool.join('https://gifos.app/run.html#room=roomB', '');
+  await pool.join('https://gifos.app/run.html#room=roomC', '');
   await pool.workers[0].call('breakVoice');
   const local = { respond_to_command: true, conversation_voice: 'local' };
   await pool.setVoice(local);
@@ -701,14 +701,14 @@ test('a leave_meeting that fails keeps the room on its worker, so a second leave
   await Promise.all([server.connect(ta), client.connect(tb)]);
   const call = (name, args = {}) => client.callTool({ name, arguments: args });
 
-  const open = JSON.parse((await call('join_meeting', { link: 'http://127.0.0.1:19510/run.html#v=openroom', topic: 'Open' })).content[0].text);
+  const open = JSON.parse((await call('join_meeting', { link: 'http://127.0.0.1:19510/run.html#room=openroom', topic: 'Open' })).content[0].text);
   await pool.workers[0].call('breakLeave', 'Meeting Bot: the room did not answer');
   const first = await call('leave_meeting', { meeting_id: open.meeting_id });
   assert.equal(first.isError, true);
   // The bot may still sit in the room: the seat is still taken and still routed.
   assert.equal(meetings.get(open.meeting_id).state, 'live');
   assert.equal((await pool.info()).workers[0].rooms, 1);
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomB', ''), /Every worker is full/);
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomB', ''), /Every worker is full/);
 
   await pool.workers[0].call('fixLeave');
   const second = await call('leave_meeting', { meeting_id: open.meeting_id });
@@ -720,7 +720,7 @@ test('a leave_meeting that fails keeps the room on its worker, so a second leave
 
 test('a leave the worker answers with "No such meeting" counts as left', async () => {
   makePool({ workers: 1, rooms: 1 });
-  const a = await pool.join('https://gifos.app/run.html#v=roomA', '');
+  const a = await pool.join('https://gifos.app/run.html#room=roomA', '');
   await pool.workers[0].call('breakLeave', 'Meeting Bot: No such meeting: mt_1');
   await pool.leave(a);
   assert.equal(pool.workers[0].used, 0);
@@ -728,13 +728,13 @@ test('a leave the worker answers with "No such meeting" counts as left', async (
 
 test('a leave that times out keeps the seat until the late answer lands, then frees it', { timeout: 10000 }, async () => {
   makePool({ workers: 1, rooms: 1, callMs: 200 });
-  const a = await pool.join('https://gifos.app/run.html#v=roomA', '');
+  const a = await pool.join('https://gifos.app/run.html#room=roomA', '');
   await pool.workers[0].call('holdLeaves');
   await assert.rejects(pool.leave(a), /did not answer leave within 200ms/);
   assert.equal(pool.workers[0].used, 1);
   await pool.workers[0].call('releaseLeaves');
   assert.ok(await until(() => pool.workers[0].used === 0), 'the seat stayed taken after the late leave landed');
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomB', ''), 'w0:mt_2');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomB', ''), 'w0:mt_2');
 });
 
 test('a leave_meeting that timed out and then landed late: a second leave_meeting ends the meeting instead of failing for good', { timeout: 10000 }, async () => {
@@ -748,7 +748,7 @@ test('a leave_meeting that timed out and then landed late: a second leave_meetin
   await Promise.all([server.connect(ta), client.connect(tb)]);
   const call = (name, args = {}) => client.callTool({ name, arguments: args });
 
-  const open = JSON.parse((await call('join_meeting', { link: 'http://127.0.0.1:19510/run.html#v=openroom', topic: 'Open' })).content[0].text);
+  const open = JSON.parse((await call('join_meeting', { link: 'http://127.0.0.1:19510/run.html#room=openroom', topic: 'Open' })).content[0].text);
   await pool.workers[0].call('holdLeaves');
   const first = await call('leave_meeting', { meeting_id: open.meeting_id });
   assert.equal(first.isError, true);
@@ -771,8 +771,8 @@ test('a worker whose browser will not start does not take every join: the join g
   // Warming skips past worker 0 instead of failing.
   await pool.ensureStarted();
   assert.equal(pool.workers[1].state, 'ready');
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomA', ''), 'w1:mt_1');
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomB', ''), 'w1:mt_2');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomA', ''), 'w1:mt_1');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomB', ''), 'w1:mt_2');
   // Worker 0 is not asked to start its browser on every join.
   assert.equal(await starts0(), 1);
   const row = (await pool.info()).workers[0];
@@ -780,27 +780,27 @@ test('a worker whose browser will not start does not take every join: the join g
   assert.equal(row.start_retry_in_ms, 1000);
   // Worker 1 is full and worker 0 waits out its backoff: no seat, so the clock waits.
   assert.equal(pool.hasSeat(), false);
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomC', ''), (e) => e.code === 'no_seat' && /worker 0/i.test(e.message));
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomC', ''), (e) => e.code === 'no_seat' && /worker 0/i.test(e.message));
   assert.equal(await starts0(), 1);
   // After the backoff, a fixed browser takes the next room.
   await pool.workers[0].call('fixStart');
   now += 1000;
   assert.equal(pool.hasSeat(), true);
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomC', ''), 'w0:mt_1');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomC', ''), 'w0:mt_1');
   assert.equal((await pool.info()).workers[0].start_retry_in_ms, undefined);
 });
 
 test('a one-worker pool whose browser will not start reports why on the join', async () => {
   cfg.failStart = [0];
   makePool({ workers: 1 });
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomA', ''), /Chromium would not start/);
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomA', ''), /Chromium would not start/);
 });
 
 test('a late join whose leave fails keeps its seat and is left again on its own, so the bot is not stranded in the room', { timeout: 10000 }, async () => {
   makePool({ workers: 1, rooms: 1, callMs: 2000, joinMs: 200, leaveRetryMs: 100 });
   await pool.ensureStarted();
   await pool.workers[0].call('holdJoins');
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomA', ''), /did not answer join within 200ms/);
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomA', ''), /did not answer join within 200ms/);
   await pool.workers[0].call('breakLeave', 'Meeting Bot: the room did not answer');
   await pool.workers[0].call('releaseJoins');
   const leaves = async () => (await pool.workers[0].call('calls')).filter((r) => r[0] === 'leave').length;
@@ -814,7 +814,7 @@ test('a late join whose leave fails keeps its seat and is left again on its own,
   await pool.workers[0].call('fixLeave');
   assert.ok(await until(() => pool.workers[0].used === 0), 'the seat stayed taken after the retry worked');
   assert.equal((await pool.info()).workers[0].stray_rooms, undefined);
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomB', ''), 'w0:mt_2');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomB', ''), 'w0:mt_2');
 });
 
 test('a join that timed out and has not landed yet keeps its seat, so the worker is not given more rooms than its budget', { timeout: 10000 }, async () => {
@@ -822,11 +822,11 @@ test('a join that timed out and has not landed yet keeps its seat, so the worker
   // lateJoinMs: no list check during this test; the tests below cover it.
   await pool.ensureStarted();
   await pool.workers[0].call('holdJoins');
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomA', ''), /did not answer join within 200ms/);
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomA', ''), /did not answer join within 200ms/);
   // The bot may still be walking into roomA, so the only seat is not free.
   assert.equal(pool.workers[0].used, 1);
   assert.equal(pool.hasSeat(), false);
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomB', ''), (e) => e.code === 'no_seat');
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomB', ''), (e) => e.code === 'no_seat');
   const joins = async () => (await pool.workers[0].call('calls')).filter((r) => r[0] === 'join').length;
   assert.equal(await joins(), 1, 'a second room was sent to a worker whose budget was spent');
   assert.equal((await pool.info()).workers[0].late_joins, 1);
@@ -842,7 +842,7 @@ test('a join that never answers is checked against the worker\'s own room list: 
   makePool({ workers: 1, rooms: 1, callMs: 2000, joinMs: 200, lateJoinMs: 300 });
   await pool.ensureStarted();
   await pool.workers[0].call('holdJoins');
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomA', ''), /did not answer join within 200ms/);
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomA', ''), /did not answer join within 200ms/);
   assert.equal(pool.workers[0].used, 1);
   // The join never answers. Meet Bot lists no room the pool does not know, so the bot is not in one.
   assert.ok(await until(() => pool.workers[0].used === 0), 'a join that never answered held its seat for good');
@@ -854,14 +854,14 @@ test('a join that never answers is checked against the worker\'s own room list: 
   assert.ok(await until(async () => (await leaves()).length === 1), 'the join that landed after the check was never left');
   assert.ok(await until(() => pool.workers[0].used === 0 && pool.workers[0].stray.size === 0));
   assert.equal(pool.workers[0].lateJoins, 0);
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomB', ''), 'w0:mt_2');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomB', ''), 'w0:mt_2');
 });
 
 test('a join that never answers but whose room Meet Bot holds is left, so the bot is not stranded there', { timeout: 10000 }, async () => {
   makePool({ workers: 1, rooms: 1, callMs: 2000, joinMs: 200, lateJoinMs: 300 });
   await pool.ensureStarted();
   await pool.workers[0].call('stallJoins');
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomA', ''), /did not answer join within 200ms/);
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomA', ''), /did not answer join within 200ms/);
   const leaves = async () => (await pool.workers[0].call('calls')).filter((r) => r[0] === 'leave');
   assert.ok(await until(async () => (await leaves()).some((r) => r[1] === 'mt_1')), 'the room the stalled join took was never left');
   assert.ok(await until(() => pool.workers[0].used === 0), 'the seat stayed taken after the room was left');
@@ -870,11 +870,11 @@ test('a join that never answers but whose room Meet Bot holds is left, so the bo
 
 test('the late-join check does not leave a room the pool holds or one a join still in time is walking into', { timeout: 10000 }, async () => {
   makePool({ workers: 1, rooms: 3, callMs: 2000, joinMs: 200, lateJoinMs: 100 });
-  const a = await pool.join('https://gifos.app/run.html#v=roomA', '');
+  const a = await pool.join('https://gifos.app/run.html#room=roomA', '');
   await pool.workers[0].call('stallJoins');
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomB', ''), /did not answer join within 200ms/);
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomB', ''), /did not answer join within 200ms/);
   // A join still inside its own time limit: Meet Bot already lists its room (mt_3).
-  const inTime = pool.workers[0].callWithin(5000, 'join', 'https://gifos.app/run.html#v=roomC', '').catch(() => {});
+  const inTime = pool.workers[0].callWithin(5000, 'join', 'https://gifos.app/run.html#room=roomC', '').catch(() => {});
   await new Promise((r) => setTimeout(r, 800));
   const left = (await pool.workers[0].call('calls')).filter((r) => r[0] === 'leave').map((r) => r[1]);
   assert.ok(!left.includes('mt_1'), 'the check left a room the pool holds');
@@ -894,7 +894,7 @@ test('a leave_meeting that never answers is checked against the worker\'s own ro
   await Promise.all([server.connect(ta), client.connect(tb)]);
   const call = (name, args = {}) => client.callTool({ name, arguments: args });
 
-  const open = JSON.parse((await call('join_meeting', { link: 'http://127.0.0.1:19510/run.html#v=openroom', topic: 'Open' })).content[0].text);
+  const open = JSON.parse((await call('join_meeting', { link: 'http://127.0.0.1:19510/run.html#room=openroom', topic: 'Open' })).content[0].text);
   await pool.workers[0].call('stallLeaves');
   const first = await call('leave_meeting', { meeting_id: open.meeting_id });
   assert.equal(first.isError, true);
@@ -910,7 +910,7 @@ test('a leave_meeting that never answers is checked against the worker\'s own ro
 
 test('a leave that never answers while Meet Bot still lists the room keeps the seat, and a second leave can reach it', { timeout: 10000 }, async () => {
   makePool({ workers: 1, rooms: 1, callMs: 200, lateLeaveMs: 100 });
-  const a = await pool.join('https://gifos.app/run.html#v=roomA', '');
+  const a = await pool.join('https://gifos.app/run.html#room=roomA', '');
   await pool.workers[0].call('holdLeaves');
   await assert.rejects(pool.leave(a), /did not answer leave within 200ms/);
   await new Promise((r) => setTimeout(r, 600));
@@ -924,7 +924,7 @@ test('a worker whose boot never finishes is killed after bootMs, so a join goes 
   makePool({ workers: 2, rooms: 1, bootMs: 300 });
   const t0 = Date.now();
   const joined = await Promise.race([
-    pool.join('https://gifos.app/run.html#v=roomA', ''),
+    pool.join('https://gifos.app/run.html#room=roomA', ''),
     new Promise((r) => setTimeout(() => r('still waiting after 5s'), 5000)),
   ]);
   assert.equal(joined, 'w1:mt_1');
@@ -938,7 +938,7 @@ test('a worker whose boot never finishes is killed after bootMs, so a join goes 
 test('close() while a join waits on a worker that is booting starts no other worker, and the join fails', { timeout: 10000 }, async () => {
   cfg.hangBoot = [0];
   makePool({ workers: 2, rooms: 1, closeMs: 300 });
-  const joining = pool.join('https://gifos.app/run.html#v=roomA', '').then((v) => ({ v }), (e) => ({ e }));
+  const joining = pool.join('https://gifos.app/run.html#room=roomA', '').then((v) => ({ v }), (e) => ({ e }));
   await new Promise((r) => setTimeout(r, 300));
   await pool.close();
   const got = await Promise.race([joining, new Promise((r) => setTimeout(() => r({ v: 'still waiting after 3s' }), 3000))]);
@@ -953,18 +953,18 @@ test('a join whose worker dies mid-join goes to the next worker instead of faili
   makePool({ workers: 2, rooms: 2 });
   await pool.ensureStarted();
   assert.equal(pool.workers[0].state, 'ready');
-  assert.equal(await pool.join('https://gifos.app/run.html#v=roomA', ROOM), 'w1:mt_1');
+  assert.equal(await pool.join('https://gifos.app/run.html#room=roomA', ROOM), 'w1:mt_1');
   const row = (await pool.info()).workers[0];
   assert.equal(row.state, 'lost');
   assert.match(row.error, /code 9/);
   const log1 = await pool.workers[1].call('calls');
-  assert.deepEqual(log1.find((r) => r[0] === 'join').slice(1), ['https://gifos.app/run.html#v=roomA', ROOM]);
+  assert.deepEqual(log1.find((r) => r[0] === 'join').slice(1), ['https://gifos.app/run.html#room=roomA', ROOM]);
 });
 
 test('a join that takes down every worker it reaches is tried on one more worker only, then fails', { timeout: 10000 }, async () => {
   cfg.crashJoin = [0, 1, 2];
   makePool({ workers: 3, rooms: 1 });
-  await assert.rejects(pool.join('https://gifos.app/run.html#v=roomA', ''), /Worker 1 stopped/);
+  await assert.rejects(pool.join('https://gifos.app/run.html#room=roomA', ''), /Worker 1 stopped/);
   assert.deepEqual(pool.workers.map((w) => w.state), ['lost', 'lost', 'stopped']);
 });
 
@@ -1343,7 +1343,7 @@ test('join_meeting with a password on a full disk (schedule.json save fails afte
 
   const save = schedule.save;
   schedule.save = () => { throw Object.assign(new Error('ENOSPC: no space left on device, write'), { code: 'ENOSPC' }); };
-  const res = await call('join_meeting', { link: 'http://127.0.0.1:19510/run.html#v=fullroom', password: ROOM, topic: 'Full join' });
+  const res = await call('join_meeting', { link: 'http://127.0.0.1:19510/run.html#room=fullroom', password: ROOM, topic: 'Full join' });
   assert.ok(!res.isError, 'the bot joined, so join_meeting says so: ' + res.content[0].text);
   const m = JSON.parse(res.content[0].text);
   assert.equal(await sitting(), 1, 'the bot sits in the room');
@@ -1380,7 +1380,7 @@ test('mute, unmute and get_transcript on a full disk (meetings.json save fails a
   const client = new Client({ name: 'unit', version: '1' });
   await Promise.all([server.connect(ta), client.connect(tb)]);
   const call = (name, args = {}) => client.callTool({ name, arguments: args });
-  const m = JSON.parse((await call('join_meeting', { link: 'http://127.0.0.1:19510/run.html#v=fullmute', topic: 'Full mute' })).content[0].text);
+  const m = JSON.parse((await call('join_meeting', { link: 'http://127.0.0.1:19510/run.html#room=fullmute', topic: 'Full mute' })).content[0].text);
   const worker = pool.workers.find((w) => w.used > 0);
   const transcribes = async () => (await worker.call('calls')).filter((c) => c[0] === 'transcribe').map((c) => c[2]);
   const before = (await transcribes()).length;

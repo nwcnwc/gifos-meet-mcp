@@ -57,7 +57,7 @@ async function main() {
   }
   say('site ' + BASE + ', relay ' + relay);
   const room = 'core-e2e-' + Date.now().toString(36);
-  const link = BASE + '/run.html#v=' + room + '&relay=' + encodeURIComponent(relay);
+  const link = BASE + '/run.html#room=' + room + '&relay=' + encodeURIComponent(relay);
 
   const browser = await peopleBrowser(process.env.E2E_PEOPLE_WS || '');
   const alice = await personIn(browser, 'Alice', say);

@@ -54,7 +54,7 @@ window.gifos = (function () {
       join: function (room) {
         var id = 'mt_' + (++n);
         var code = String(room).replace(/^.*(v=|meet\\/)/, '').replace(/[?&#].*$/, '');
-        return Promise.resolve({ meetingId: id, room: code, link: 'https://gifos.app/run.html#v=' + code });
+        return Promise.resolve({ meetingId: id, room: code, link: 'https://gifos.app/run.html#room=' + code });
       },
       leave: function () { return Promise.resolve({}); },
       startRecording: function () { return Promise.resolve({ ok: true }); },

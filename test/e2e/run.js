@@ -189,7 +189,7 @@ async function main() {
     const created = await client.callTool({ name: 'create_meeting', arguments: { name: 'Demo meeting', type: 'admin', host_password: 'owner-key-77' } }, undefined, CALL);
     const meeting = JSON.parse(text(created));
     check('create_meeting returns a link on the local GifOS, a room the host runs, and the invite details',
-      meeting.link && meeting.link.startsWith(BASE + '/run.html#v=') && /&av=[0-9a-f]{24}/.test(meeting.link) && meeting.meeting_id &&
+      meeting.link && meeting.link.startsWith(BASE + '/run.html#room=') && /&v=[0-9a-f]{24}/.test(meeting.link) && meeting.meeting_id &&
       meeting.invite && meeting.invite.join_url === meeting.link && !text(created).includes('owner-key-77'), meeting.link);
 
     // The operator's name and picture for the bot, set before it joins.

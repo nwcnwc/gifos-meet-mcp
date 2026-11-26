@@ -20,7 +20,7 @@ function urlsContain(text, secret) {
 }
 
 test('an invite lists the room password beside a plain link', () => {
-  const link = 'https://gifos.app/run.html#v=demoroom123&password=' + ROOM + '&pw=' + ROOM;
+  const link = 'https://gifos.app/run.html#room=demoroom123&password=' + ROOM + '&pw=' + ROOM;
   const invite = formatInvite({ topic: 'Demo', link, roomPassword: ROOM, startTime: '17:00' });
   assert.equal(urlsContain(invite.email, ROOM), false);
   assert.equal(urlsContain(JSON.stringify(invite.calendar), ROOM), false);
@@ -36,7 +36,7 @@ test('an invite lists the room password beside a plain link', () => {
 });
 
 test('a link that is the password itself is refused', () => {
-  assert.throws(() => plainLink('https://gifos.app/run.html#v=' + ROOM, ROOM), /must not contain the room password/);
+  assert.throws(() => plainLink('https://gifos.app/run.html#room=' + ROOM, ROOM), /must not contain the room password/);
 });
 
 test('tool output carries the room password only as its own field, and never the bot password', async () => {
@@ -94,7 +94,7 @@ test('tool output carries the room password only as its own field, and never the
   assert.equal(bot.calls[0][1].includes(ROOM), false, 'the bot is handed a plain link');
   assert.equal(bot.calls[0][2], ROOM, 'the bot still receives the room password to type');
 
-  const dirty = 'https://gifos.app/run.html#v=otherroom1&password=' + ROOM;
+  const dirty = 'https://gifos.app/run.html#room=otherroom1&password=' + ROOM;
   const joined = JSON.parse((await client.callTool({
     name: 'join_meeting',
     arguments: { link: dirty, password: ROOM },

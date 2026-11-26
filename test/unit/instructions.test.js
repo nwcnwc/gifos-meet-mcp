@@ -16,7 +16,7 @@ import { MeetingStore } from 'gifos-mcp-core/src/meetings.js';
 import { tmpHome } from './fixtures/tmp-home.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const LINK = 'http://127.0.0.1:19510/run.html#v=checkin-alex';
+const LINK = 'http://127.0.0.1:19510/run.html#room=checkin-alex';
 const PW = 'amber-gate-77';
 const GOAL = 'Daily check-in for the owner. Ask: what did you finish, what is next, anything blocking? Up to two follow-ups each. 15 minutes.';
 

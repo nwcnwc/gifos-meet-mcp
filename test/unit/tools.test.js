@@ -95,7 +95,7 @@ test('create_meeting adds the relay to the link when GIFOS_RELAY is set', async 
   cfg = loadConfig({ GIFOS_MCP_HOME: home, GIFOS_URL: 'http://127.0.0.1:19510', GIFOS_RELAY: 'ws://127.0.0.1:19511' });
   await connect();
   const r = await mint();
-  assert.match(r.link, /#v=[0-9a-z]{24}&av=[0-9a-f]{24}&relay=ws%3A%2F%2F127\.0\.0\.1%3A19511$/);
+  assert.match(r.link, /#room=[0-9a-z]{24}&v=[0-9a-f]{24}&relay=ws%3A%2F%2F127\.0\.0\.1%3A19511$/);
 });
 
 test('create_meeting returns every invite detail, without joining and without sending anything', async () => {
@@ -195,13 +195,13 @@ test('a bot error comes back as a tool error, and the meeting stays scheduled', 
 });
 
 test('join_meeting accepts run.html and /meet links, refuses others', async () => {
-  const a = json(await call('join_meeting', { link: 'https://gifos.app/run.html#v=demoroom123&av=1', password: 'pw' }));
+  const a = json(await call('join_meeting', { link: 'https://gifos.app/run.html#room=demoroom123&v=1', password: 'pw' }));
   assert.equal(a.state, 'live');
-  assert.deepEqual(bot.calls[0], ['join', 'https://gifos.app/run.html#v=demoroom123&av=1', 'pw']);
+  assert.deepEqual(bot.calls[0], ['join', 'https://gifos.app/run.html#room=demoroom123&v=1', 'pw']);
   const b = json(await call('join_meeting', { link: 'https://gifos.app/meet/another-room' }));
   assert.equal(b.state, 'live');
   assert.notEqual(a.meeting_id, b.meeting_id);
-  const same = json(await call('join_meeting', { link: 'https://gifos.app/run.html#v=demoroom123' }));
+  const same = json(await call('join_meeting', { link: 'https://gifos.app/run.html#room=demoroom123' }));
   assert.equal(same.meeting_id, a.meeting_id, 'the same room is the same meeting');
   assert.equal(same.note, 'Already in this room.');
   const bad = await call('join_meeting', { link: 'https://example.com/somewhere' });

@@ -80,7 +80,7 @@ test('create_meeting, schedule_meeting, list, update, import, and cancel', async
   const imported = await json('import_schedule', {
     orders: [
       { link: room.link, room_password: ROOM, start, end, external_id: 'cal-1', topic: 'Imported' },
-      { link: 'https://gifos.app/run.html#v=otherroom', room_password: ROOM, start, end, external_id: 'cal-bad', recurrence: 'not a rule' },
+      { link: 'https://gifos.app/run.html#room=otherroom', room_password: ROOM, start, end, external_id: 'cal-bad', recurrence: 'not a rule' },
     ],
   });
   assert.equal(imported.conflicts.some((row) => row.reason === 'rule' && row.external_id === 'cal-bad'), true);
@@ -136,7 +136,7 @@ test('lines, report, thinking, overrun, and a full room', async () => {
   assert.equal(thinking.thinking, true);
 
   cfg.maxMeetings = 1;
-  const refused = await call('join_meeting', { link: 'https://gifos.app/run.html#v=thirdroom', password: ROOM });
+  const refused = await call('join_meeting', { link: 'https://gifos.app/run.html#room=thirdroom', password: ROOM });
   assert.equal(refused.isError, true);
   assert.match(refused.content[0].text, /at capacity/);
 
