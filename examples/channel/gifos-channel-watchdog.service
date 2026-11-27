@@ -1,0 +1,9 @@
+[Unit]
+Description=GifOS channel watchdog: restart the channel when its health file goes stale
+
+[Service]
+Type=oneshot
+Environment=CHANNEL_DIR=%h/channel
+# Edit: the channel's room name (the booth's browser profile is state/mcp-home/booth-<room>).
+Environment=CHANNEL_ROOM=my-channel
+ExecStart=/bin/bash %h/gifos-meet-mcp/examples/channel/watchdog.sh

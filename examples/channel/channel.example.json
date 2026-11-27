@@ -1,0 +1,14 @@
+{
+  "room": "my-channel",
+  "hostPwFile": "host.pw",
+  "credentials": "plan.gif",
+  "name": "My Channel",
+  "videos": "videos",
+  "stateDir": "state",
+  "yieldToPeople": true,
+  "listing": {
+    "title": "My Channel",
+    "description": "Films all day. Made with gifos-meet-mcp.",
+    "thumbnail": "thumb.jpg"
+  }
+}

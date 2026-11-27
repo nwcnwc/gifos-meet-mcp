@@ -342,6 +342,21 @@ private meeting, the host-only ones need `sign_in_as_host` first:
 | `take_turns` | `meeting_id`, `action` (`start`, `state`, `next`, `back`, `pass`, `restart`, `shuffle`, `timer`), `seconds?` | Runs and drives Take Turns: who is up now and next, the time left, the order. Take Turns asks the person whose turn it is onto the stage on their own page; it never turns a camera or microphone on. |
 | `stage` | `meeting_id`, `action` (`state`, `step_on`, `step_off`, `allow`, `disallow`), `person_id?` | Who is on the stage; step the bot on or off; as host, allow or disallow a person (ids from `get_meeting_state`). |
 
+Broadcast channel tools (from gifos-mcp-core): the host's own seat of a GifOS broadcast (the `/cast` page) in a
+headless browser on this computer, the "booth". With them an assistant runs a channel: films or clips on the Stage
+around the clock, listed on gifos.tv. Recipe: [run a 24/7 channel](examples/channel/README.md).
+
+| Tool | Arguments | Returns |
+|---|---|---|
+| `open_booth` | `room` or `link`, `host_password`, `name?`, `credentials?` | Opens the broadcast's host seat and waits until it is the host with its relay up; answers `booth_id` (the room name) and `link` (the viewers' link). A new room name becomes a hosted broadcast owned by that password. The booth keeps its own browser profile in `GIFOS_MCP_HOME/booth-<room>` (host key, credentials, gifos.tv listing), so a restart picks up where it was. Opens off air. |
+| `play_video` | `booth_id`, `path` or `paths`, `loop?`, `start_at_s?`, `clear?`, `yield_to_people?` | Plays video files from this computer into the broadcast with the page's own Rebroadcast button (viewers see Prerecorded), one after another, on a loop if asked. Made to run for days: a file that stops at a bad spot skips past it; a stuck video, a lost page or a new GifOS release reloads the page and goes on from the same second. **Filler mode** (`yield_to_people: true`): when a person takes the Stage (a co-host signed in with the host password, or someone the host let up), the video stops and the booth steps off at once, never fighting for the Stage; when the Stage has been free of people for 1.5 s the same video goes on from the same second. |
+| `stop_video` | `booth_id` | Stops the video and forgets the list; the broadcast stays open. |
+| `publish_to_tv` | `booth_id`, `title`, `description?`, `thumbnail_path?` or `thumbnail_from_stage?`, `tip_address?`, `pw_needed?` | Lists the broadcast on gifos.tv: the same signed listing as the /cast page's "Publish to GifOS.tv" button, signed with the room's host key in the host page (only a room you host can be listed), with the person check and a 640x360 thumbnail from a file or a still of the Stage. `tip_address` (a Base address) is stored by gifos.tv for later. Then the host page itself goes on air, sends a keep-alive every few minutes and goes off air when the booth closes. |
+| `update_tv_listing` | `booth_id` and any of the fields above | Changes only the fields given; the listing stays on air. |
+| `stop_tv_listing` | `booth_id` | Takes the listing off gifos.tv; the broadcast goes on. |
+| `booth_status` | `booth_id?` | Host and relay, on air, the video (file, second, length), `yielding_to` (the people who have the Stage in filler mode), the gifos.tv listing (listed, on air, next keep-alive), the GifOS release, counts (plays, skips, early ends, reloads, yields) and the last event. |
+| `close_booth` | `booth_id` | Leaves the broadcast and closes the booth's browser; the listing goes off air until the booth opens again. |
+
 Shared tools (from gifos-mcp-core, the same in gifos-broadcast-mcp):
 
 | Tool | Arguments | Returns |

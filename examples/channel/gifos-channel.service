@@ -1,0 +1,22 @@
+[Unit]
+Description=GifOS channel run by an MCP client (gifos-meet-mcp examples/channel)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Edit these two paths: your gifos-meet-mcp checkout and your channel folder (channel.json, state/).
+Environment=GIFOS_MEET_MCP=%h/gifos-meet-mcp
+WorkingDirectory=%h/channel
+ExecStart=/usr/bin/env node ${GIFOS_MEET_MCP}/examples/channel/channel.mjs %h/channel/channel.json
+Restart=always
+RestartSec=5
+# Below other work on the box: a headless Chromium playing 360p video uses about one core.
+Nice=10
+CPUQuota=240%
+MemoryMax=1800M
+TimeoutStopSec=25
+KillMode=control-group
+
+[Install]
+WantedBy=default.target

@@ -67,6 +67,16 @@ details, and drives a headless **Meeting Bot** that joins, transcribes, and spea
 - `stage` reads who is on the stage and steps the bot on or off; as host it can `allow` a person to take it.
 - On an older GifOS site these answer "This GifOS site does not have that yet".
 
+## A broadcast channel on gifos.tv
+
+"Run my videos as a channel", "put a channel on gifos.tv": `open_booth` (`room`, the host password from the user's
+vault) opens the broadcast's host seat; `play_video` (`paths`, `loop: true`) plays the files on the Stage;
+`publish_to_tv` (`title`, `description`, a thumbnail file or a still of the Stage) lists it on gifos.tv, and the page
+keeps the listing live. `update_tv_listing` / `stop_tv_listing` change or remove it. "Fill time until I go live",
+"play clips when nobody is on": `play_video` with `yield_to_people: true` gives the Stage to any person who takes it
+and resumes the same second when they leave. `booth_status` says how it stands. For a 24/7 channel follow
+`examples/channel/README.md` in this package. Only videos the user has the rights to show.
+
 ## Run a meeting for the owner (opt-in)
 
 By default the bot only transcribes. When the owner gives the bot a goal and instructions for a meeting
