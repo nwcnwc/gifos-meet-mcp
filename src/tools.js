@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import { z } from 'zod';
 import {
   meetingId, newRoom, hostKey, meetingLink, plainLink, meetingInvite, publicView, scrub, instructionsField, cleanInstructions, assertNotPast,
-  CAMERA_GAP, HAND_GAP, MIC_GAP, registerRoomTools, kindField,
+  CAMERA_GAP, HAND_GAP, MIC_GAP, registerRoomTools, registerBoothTools, kindField,
 } from 'gifos-mcp-core';
 import { attachTalk, PLAIN } from './talk.js';
 import { MeetingArchive, archiveConfig } from './archive.js';
@@ -49,6 +49,8 @@ export function registerMeetTools(server, ctx) {
   }
   // The agenda, apps (Take Turns), the stage and host sign-in (GifOS 0.9.26).
   registerRoomTools(server, ctx, { name: 'gifos-meet-mcp' });
+  // A broadcast's host seat: play video files on the Stage, list it on gifos.tv (a channel an assistant can run).
+  registerBoothTools(server, ctx);
 
   server.registerTool('create_meeting', {
     title: 'Create a GifOS meeting (link and invite details, no join)',
