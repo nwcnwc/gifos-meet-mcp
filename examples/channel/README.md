@@ -33,8 +33,10 @@ off the Stage at once, without fighting for it: the person does the show. When t
 1.5 seconds, the same video goes on from the second it stopped. `booth_status` shows `yielding_to` while a person has
 the Stage. The gifos.tv listing stays live the whole time.
 
-Measured on the demo channel (a co-host seat taking and leaving the Stage, a viewer on another computer): the video
-gave way about 2 seconds after the person stepped up, and came back within 5 seconds after they stepped down.
+Measured on the demo channel (a co-host seat already in the room stepping onto and off the Stage, viewers on other
+computers): the booth gave way 0.7 s after the person stepped up (viewers saw and heard the person about 1 s after),
+and the film was back 2.3 s after they stepped down (about 4 s for viewers). A person who has just joined is seen once
+their seat links to the booth's, a few seconds after they arrive.
 
 ## Run it
 
