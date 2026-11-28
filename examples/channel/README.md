@@ -12,7 +12,7 @@ The live demo, "GifOS TV (MCP demo)" on gifos.tv, runs this script on a Raspberr
 ```json
 { "tool": "open_booth", "arguments": { "room": "my-channel", "host_password": "<from your vault>", "name": "My Channel", "credentials": "/path/plan.gif" } }
 { "tool": "play_video", "arguments": { "booth_id": "my-channel", "paths": ["/videos/a.webm", "/videos/b.webm"], "loop": true, "yield_to_people": true } }
-{ "tool": "publish_to_tv", "arguments": { "booth_id": "my-channel", "title": "My Channel", "description": "Films all day.", "thumbnail_path": "/videos/thumb.jpg" } }
+{ "tool": "publish_to_tv", "arguments": { "booth_id": "my-channel", "title": "My Channel", "description": "Films all day.", "thumbnail_path": "/videos/thumb.jpg", "category": "film", "tags": ["classic films"], "language": "en" } }
 { "tool": "booth_status", "arguments": { "booth_id": "my-channel" } }
 ```
 
@@ -23,7 +23,9 @@ The live demo, "GifOS TV (MCP demo)" on gifos.tv, runs this script on a Raspberr
   on from the same second.
 - `publish_to_tv` lists the broadcast on gifos.tv with a signed listing (the same one the /cast page's "Publish to
   GifOS.tv" button makes), and the page then keeps the listing live by itself. `update_tv_listing` changes a field,
-  `stop_tv_listing` takes it off. Everything in a listing is public.
+  `stop_tv_listing` takes it off. Everything in a listing is public. `category` (one of talk, music, gaming, faith,
+  education, news, sports, tech, art, business, film, chat), up to 3 `tags` and the `language` are how viewers find it
+  on gifos.tv; in channel.json they go in `listing` as `category`, `tags`, `language`.
 
 ## Filler mode: people first
 

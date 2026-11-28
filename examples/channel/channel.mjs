@@ -96,12 +96,14 @@ async function main() {
   // gifos.tv: list it once (the booth's profile remembers); a changed title or description goes out with update_tv_listing.
   if (cfg.listing && cfg.listing.title) {
     const s = (await call('booth_status', { booth_id: cfg.room })).booths[0];
-    const want = { title: cfg.listing.title, description: cfg.listing.description || '' };
+    // How viewers find it: one category, up to 3 tags, the language (all optional in channel.json).
+    const want = Object.assign({ title: cfg.listing.title, description: cfg.listing.description || '' },
+      cfg.listing.category ? { category: cfg.listing.category } : {}, Array.isArray(cfg.listing.tags) ? { tags: cfg.listing.tags.slice(0, 3) } : {}, cfg.listing.language ? { language: cfg.listing.language } : {});
     const seen = readJson(path.join(STATE, 'listed.json'), null);
     const thumb = cfg.listing.thumbnail ? { thumbnail_path: at(cfg.listing.thumbnail) } : { thumbnail_from_stage: true };
     let r = null;
     if (!s.gifos_tv || !s.gifos_tv.listed) r = await call('publish_to_tv', { booth_id: cfg.room, ...want, ...thumb });
-    else if (!seen || seen.title !== want.title || seen.description !== want.description) r = await call('update_tv_listing', { booth_id: cfg.room, ...want });
+    else if (!seen || JSON.stringify(seen) !== JSON.stringify(want)) r = await call('update_tv_listing', { booth_id: cfg.room, ...want, ...(cfg.listing.thumbnail ? thumb : {}) });
     if (r) { writeJson(path.join(STATE, 'listed.json'), want); log('gifos_tv', { url: r.url }); } else log('gifos_tv', { listed: true, url: s.gifos_tv.url });
   }
 
